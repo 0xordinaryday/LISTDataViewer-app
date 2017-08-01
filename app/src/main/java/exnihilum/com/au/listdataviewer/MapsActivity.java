@@ -1,5 +1,6 @@
 package exnihilum.com.au.listdataviewer;
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -14,6 +15,7 @@ import android.location.Location;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.preference.PreferenceManager;
 import android.support.annotation.DrawableRes;
 import android.support.graphics.drawable.VectorDrawableCompat;
@@ -21,7 +23,6 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
-import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
 import android.widget.ProgressBar;
@@ -39,28 +40,25 @@ import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
-import com.google.android.gms.maps.model.Polygon;
-import com.google.android.gms.maps.model.PolygonOptions;
-import com.google.android.gms.maps.model.Polyline;
-import com.google.android.gms.maps.model.PolylineOptions;
+import com.google.maps.android.kml.KmlLayer;
 
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
-
-import java.io.BufferedReader;
+import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
+import java.io.OutputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.nio.charset.Charset;
+import java.net.URLConnection;
 import java.util.ArrayList;
-import java.util.HashMap;
 
+import Utilities.Helper;
 import Utilities.ParametersHelper;
 
+import static android.os.Environment.getExternalStorageDirectory;
 import static exnihilum.com.au.listdataviewer.R.id.map;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, GoogleMap.OnMarkerClickListener {
@@ -95,6 +93,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
+
+        // storage permissions
+        verifyStoragePermissions(this);
 
         // get initial position from shared preferences
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
@@ -149,7 +150,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         mMap.clear();
                         finalRequestString = generateString(selectedType, generateEnvelope());
                         // make new server request
-                        LISTMapAsyncTask task = new LISTMapAsyncTask();
+                        DownloadFileFromURL task = new DownloadFileFromURL();
                         task.execute();
                     }
                 }
@@ -170,7 +171,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
 
         // Kick off an {@link AsyncTask} to perform the network request
-        LISTMapAsyncTask task = new LISTMapAsyncTask();
+        DownloadFileFromURL task = new DownloadFileFromURL();
         task.execute();
         progressBar.setVisibility(View.VISIBLE);
     }
@@ -205,7 +206,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 separator +
                 envelope[2] +
                 "&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects&relationParam=&outFields=";
-        String LIST_REQUEST_URL_PART5 = "&returnGeometry=true&returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=4326&returnIdsOnly=false&returnCountOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&gdbVersion=&returnDistinctValues=false&resultOffset=&resultRecordCount=&f=pjson";
+        String LIST_REQUEST_URL_PART5 = "&returnGeometry=true&returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=4326&returnIdsOnly=false&returnCountOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&gdbVersion=&returnDistinctValues=false&resultOffset=&resultRecordCount=&f=kmz";
 
         PARAM1 = type.getParam1();
         PARAM2 = type.getParam2();
@@ -261,7 +262,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     mMap.clear();
                     finalRequestString = generateString(selectedType, generateEnvelope());
                     // make new server request
-                    LISTMapAsyncTask task = new LISTMapAsyncTask();
+                    DownloadFileFromURL task = new DownloadFileFromURL();
                     task.execute();
                 }
             }
@@ -277,95 +278,17 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     /**
-     * {@link AsyncTask} to perform the network request on a background thread, and then
-     * DO THE THINGS
-     */
-    private class LISTMapAsyncTask extends AsyncTask<URL, Void, DataCollection> {
-
-        @Override
-        protected DataCollection doInBackground(URL... urls) {
-            canMakeServerRequest = false;
-            // Create URL object
-            URL url = createUrl(finalRequestString);
-
-            // Perform HTTP request to the URL and receive a JSON response back
-            String jsonResponse = "";
-            try {
-                jsonResponse = makeHttpRequest(url);
-            } catch (IOException e) {
-                // TODO Handle the IOException
-            }
-            return extractFeatureFromJson(jsonResponse);
-        }
+     * Background Async Task to download file
+     * */
+    class DownloadFileFromURL extends AsyncTask<String, String, String> {
 
         /**
-         */
+         * Before starting background thread Show Progress Bar Dialog
+         * */
         @Override
-        protected void onPostExecute(DataCollection testCollection) {
-            if (testCollection == null) {
-                Log.i(LOG_TAG, "collection was null");
-                return;
-            }
-            int collectionCount = testCollection.getGeometryLength();
-
-            if (geometryType.equals("rings")) {
-                for (int i = 0; i < collectionCount; i++) {
-                    // Instantiates a new Polygon object and adds points to define a rectangle
-                    PolygonOptions rectOptions = new PolygonOptions()
-                            .add(new LatLng(37.35, -122.0),
-                                    new LatLng(37.45, -122.0),
-                                    new LatLng(37.45, -122.2),
-                                    new LatLng(37.35, -122.2),
-                                    new LatLng(37.35, -122.0));
-                    // Get back the mutable Polygon
-                    Polygon polygon = mMap.addPolygon(rectOptions);
-                    final String keyValue = testCollection.getGeometries().get(i).keySet().toArray()[0].toString();
-                    polygon.setPoints(testCollection.getGeometries().get(i).get(keyValue));
-                    polygon.setTag(keyValue);
-                    polygon.setClickable(true);
-                    mMap.setOnPolygonClickListener(new GoogleMap.OnPolygonClickListener() {
-                        @Override
-                        public void onPolygonClick(Polygon polygon) {
-                            Toast.makeText(getApplicationContext(), polygon.getTag().toString(), Toast.LENGTH_LONG).show();
-                        }
-                    });
-                }
-            } else if (geometryType.equals("paths")) {
-                for (int i = 0; i < collectionCount; i++) {
-                    // Instantiates a new Polyline object
-                    PolylineOptions polyOptions = new PolylineOptions()
-                            .add(new LatLng(37.35, -122.0),
-                                    new LatLng(37.45, -122.0),
-                                    new LatLng(37.45, -122.2),
-                                    new LatLng(37.35, -122.2),
-                                    new LatLng(37.35, -122.0));
-                    // Get back the mutable Polyline
-                    Polyline polyline = mMap.addPolyline(polyOptions);
-                    final String keyValue = testCollection.getGeometries().get(i).keySet().toArray()[0].toString();
-                    polyline.setPoints(testCollection.getGeometries().get(i).get(keyValue));
-                    polyline.setTag(keyValue);
-                    polyline.setClickable(true);
-                    mMap.setOnPolylineClickListener(new GoogleMap.OnPolylineClickListener() {
-                        @Override
-                        public void onPolylineClick(Polyline polyline) {
-                            Toast.makeText(getApplicationContext(), polyline.getTag().toString(), Toast.LENGTH_LONG).show();
-                        }
-                    });
-                }
-            } else if (geometryType.equals("none")) {
-                for (int i = 0; i < collectionCount; i++) {
-                    final String keyValue = testCollection.getGeometries().get(i).keySet().toArray()[0].toString();
-                    // Instantiates a new marker
-                    MarkerOptions markerOptions = new MarkerOptions()
-                            .position(testCollection.getGeometries().get(i).get(keyValue).get(0))
-                            .title(keyValue);
-                    Marker mMarker = mMap.addMarker(markerOptions);
-                    mMarker.setTag(keyValue);
-                }
-            }
-            Log.i(LOG_TAG, "onpostexecute completed");
-            canMakeServerRequest = true;
-            progressBar.setVisibility(View.INVISIBLE);
+        protected void onPreExecute() {
+            super.onPreExecute();
+            // probably don't need anything else
         }
 
         /**
@@ -383,146 +306,98 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
 
         /**
-         * Make an HTTP request to the given URL and return a String as the response.
-         */
-        private String makeHttpRequest(URL url) throws IOException {
-            String jsonResponse = "";
-            HttpURLConnection urlConnection = null;
-            InputStream inputStream = null;
-
-            // check for null URL
-            if (url == null) {
-                return jsonResponse;
-            }
-
+         * Downloading file in background thread
+         * */
+        @Override
+        protected String doInBackground(String... urls) {
+            canMakeServerRequest = false;
+            // Create URL object
+            URL url = createUrl(finalRequestString);
+            int count;
             try {
-                urlConnection = (HttpURLConnection) url.openConnection();
-                urlConnection.setRequestMethod("GET");
-                urlConnection.setReadTimeout(10000 /* milliseconds */);
-                urlConnection.setConnectTimeout(15000 /* milliseconds */);
-                urlConnection.connect();
-                // check response code
-                int responseCode = urlConnection.getResponseCode();
-                if (responseCode != 200) {
-                    // invalid response
-                    Log.i(LOG_TAG + " http response code", String.valueOf(responseCode));
-                    return jsonResponse;
+                URLConnection connection = url.openConnection();
+                connection.connect();
+
+                // download the file
+                InputStream input = new BufferedInputStream(url.openStream(),
+                        8192);
+
+                // Output stream
+                OutputStream output = new FileOutputStream(
+                        getExternalStorageDirectory().toString()
+                        + "/download.kmz");
+
+                byte data[] = new byte[1024];
+
+                long total = 0;
+
+                while ((count = input.read(data)) != -1) {
+                    total += count;
+                    // writing data to file
+                    output.write(data, 0, count);
                 }
-                inputStream = urlConnection.getInputStream();
-                jsonResponse = readFromStream(inputStream);
-            } catch (IOException e) {
-                // TODO: Handle the exception
-                Log.e(LOG_TAG, " exception thrown:", e);
-            } finally {
-                if (urlConnection != null) {
-                    urlConnection.disconnect();
-                }
-                if (inputStream != null) {
-                    // function must handle java.io.IOException here
-                    inputStream.close();
-                }
+
+                // flushing output
+                output.flush();
+
+                // closing streams
+                output.close();
+                input.close();
+
+            } catch (Exception e) {
+                Log.e("Error: ", e.getMessage());
             }
-            return jsonResponse;
-        }
 
-        /**
-         * Convert the {@link InputStream} into a String which contains the
-         * whole JSON response from the server.
-         */
-        private String readFromStream(InputStream inputStream) throws IOException {
-            StringBuilder output = new StringBuilder();
-            if (inputStream != null) {
-                InputStreamReader inputStreamReader = new InputStreamReader(inputStream, Charset.forName("UTF-8"));
-                BufferedReader reader = new BufferedReader(inputStreamReader);
-                String line = reader.readLine();
-                while (line != null) {
-                    output.append(line);
-                    line = reader.readLine();
-                }
-            }
-            return output.toString();
-        }
-
-        /**
-         * Return an {@link DataCollection} object by parsing out information
-         * about ALL THE THINGS
-         */
-        private DataCollection extractFeatureFromJson(String listMapJSON) {
-            if (TextUtils.isEmpty(listMapJSON)) { // checks for null and empty string
-                return null;
-            }
-            try {
-                // setup object to hold data
-                DataCollection dataCollection = new DataCollection();
-                ArrayList<HashMap<String, ArrayList<LatLng>>> geometryToSet =
-                        new ArrayList<HashMap<String, ArrayList<LatLng>>>();
-                dataCollection.setGeometries(geometryToSet);
-
-                JSONObject baseJsonResponse = new JSONObject(listMapJSON);
-                JSONArray featureArray = baseJsonResponse.getJSONArray("features");
-                int length = featureArray.length();
-                for (int i = 0; i < length; i++) {
-                    JSONObject attributes = featureArray.getJSONObject(i);
-
-                    // string tags for datacollection
-                    JSONObject paramAttributes = attributes.getJSONObject("attributes");
-                    String param1 = paramAttributes.getString(PARAM1);
-                    String param2 = paramAttributes.getString(PARAM2);
-                    String tagToSet = "";
-                    if (param1.equals("null") && param2.equals("null")) {
-                        tagToSet = ("No" + PARAM1 + " or " + PARAM2);
-                    } else if (param1.equals("null")) {
-                        tagToSet = (PARAM2 + ": " + param2 + "\nNo " + PARAM1);
-                    } else if (param2.equals("null")) {
-                        tagToSet = ("No " + PARAM2 + "\n" + PARAM1 + ": " + param1);
-                    } else {
-                        tagToSet = (PARAM1 + ": " + param1 + "\n" + PARAM2 + ": " + param2);
-                    }
-                    HashMap<String, ArrayList<LatLng>> mapToSet = new HashMap<String, ArrayList<LatLng>>();
-
-                    JSONObject geometry = attributes.getJSONObject("geometry");
-                    /*
-                    * We can treat polygons and polylines, aka rings and paths, as equivalent
-                    * because the only real difference is that polygons close by having the same
-                    * end point as they started with. Internally in java and as far as the JSON goes
-                    * they look the same otherwise
-                     */
-
-                    if (geometryType.equals("rings") || geometryType.equals("paths")) {
-                        JSONArray geometryArray = geometry.getJSONArray(geometryType);
-                        ArrayList<LatLng> newGeometryFeature = new ArrayList<>();
-                        // If there are results in the features array
-                        if (geometryArray.length() > 0) {
-                            // Extract out the first feature (which is a path or polygon)
-                            JSONArray firstArray = geometryArray.getJSONArray(0);
-                            int featureLength = firstArray.length();
-                            for (int j = 0; j < featureLength; j++) {
-                                try {
-                                    double Lon = (firstArray.getJSONArray(j).getDouble(0));
-                                    double Lat = (firstArray.getJSONArray(j).getDouble(1));
-                                    LatLng toAppend = new LatLng(Lat, Lon);
-                                    newGeometryFeature.add(toAppend);
-                                } catch (NullPointerException e) {
-                                    Log.i(LOG_TAG, "value was null");
-                                }
-                            }
-                            mapToSet.put(tagToSet, newGeometryFeature);
-                        }
-                    } else if (geometryType.equals("none")) {
-                        Double x = geometry.getDouble("x");
-                        Double y = geometry.getDouble("y");
-                        ArrayList<LatLng> newGeometryFeature = new ArrayList<>();
-                        LatLng toAppend = new LatLng(y, x);
-                        newGeometryFeature.add(toAppend);
-                        mapToSet.put(tagToSet, newGeometryFeature);
-                    }
-                    dataCollection.addMapToGeometry(mapToSet);
-                }
-                return dataCollection;
-            } catch (JSONException e) {
-                Log.e(LOG_TAG, "Problem parsing the JSON results", e);
-            }
             return null;
+        }
+
+        /**
+         * Updating progress bar
+         * */
+        protected void onProgressUpdate(String... progress) {
+            // don't need this
+        }
+
+        /**
+         * After completing background task Dismiss the progress dialog
+         * **/
+        @Override
+        protected void onPostExecute(String file_url) {
+            // unzip the file
+            String directoryPath = Environment.getExternalStorageDirectory().toString();
+            try {
+                Helper.unzip(new File(directoryPath + "/download.kmz"),
+                        new File(directoryPath + "/unzip"));
+            } catch (IOException e) {
+                Log.i(LOG_TAG, e.getLocalizedMessage());
+            }
+
+            // convert to filestream
+            FileInputStream fileInputStream = null;
+            String filePath = directoryPath + "/unzip/doc.kml";
+            File file = new File(filePath);
+            try {
+                fileInputStream = new FileInputStream(file);
+            } catch (FileNotFoundException e) {
+                Log.i(LOG_TAG, e.getLocalizedMessage());
+            }
+
+            if (fileInputStream != null) {
+                try {
+                    KmlLayer layer = new KmlLayer(mMap, fileInputStream, getApplicationContext());
+                    layer.addLayerToMap();
+                    // Set a listener for geometry clicked events.
+                    layer.setOnFeatureClickListener(new KmlLayer.OnFeatureClickListener() {
+                        @Override
+                        public void onFeatureClick(Feature feature) {
+                            Log.i("KmlClick", "Feature clicked: " + feature.getId());
+                        }
+                    });
+                } catch (Exception e) {
+                    // do something
+                }
+            }
+            progressBar.setVisibility(View.INVISIBLE);
         }
     }
 
@@ -619,6 +494,35 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     // functionality that depends on this permission.
                 }
             }
+        }
+    }
+
+    // storage permissions
+    // Storage Permissions
+    private static final int REQUEST_EXTERNAL_STORAGE = 1;
+    private static String[] PERMISSIONS_STORAGE = {
+            android.Manifest.permission.READ_EXTERNAL_STORAGE,
+            android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+    };
+
+    /**
+     * Checks if the app has permission to write to device storage
+     *
+     * If the app does not has permission then the user will be prompted to grant permissions
+     *
+     * @param activity
+     */
+    public static void verifyStoragePermissions(Activity activity) {
+        // Check if we have write permission
+        int permission = ActivityCompat.checkSelfPermission(activity, android.Manifest.permission.WRITE_EXTERNAL_STORAGE);
+
+        if (permission != PackageManager.PERMISSION_GRANTED) {
+            // We don't have permission so prompt the user
+            ActivityCompat.requestPermissions(
+                    activity,
+                    PERMISSIONS_STORAGE,
+                    REQUEST_EXTERNAL_STORAGE
+            );
         }
     }
 

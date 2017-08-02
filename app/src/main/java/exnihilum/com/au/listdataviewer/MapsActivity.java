@@ -40,7 +40,11 @@ import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
-import com.google.maps.android.kml.KmlLayer;
+import com.google.maps.android.data.Feature;
+import com.google.maps.android.data.kml.KmlLayer;
+
+
+import org.xmlpull.v1.XmlPullParserException;
 
 import java.io.BufferedInputStream;
 import java.io.File;
@@ -146,7 +150,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         prefEditor.putString("lon", String.valueOf(currentPosition.longitude));
                         prefEditor.apply();
                         progressBar.setVisibility(View.VISIBLE);
-                        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(currentPosition, 15));
+                        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(currentPosition, 17));
                         mMap.clear();
                         finalRequestString = generateString(selectedType, generateEnvelope());
                         // make new server request
@@ -184,10 +188,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private String[] generateEnvelope() {
         // build envelope from initialPosition
-        String lowerLeftLat = String.valueOf(initialPosition.latitude - 0.005);
-        String lowerLeftLon = String.valueOf(initialPosition.longitude - 0.005);
-        String upperRightLat = String.valueOf(initialPosition.latitude + 0.005);
-        String upperRightLon = String.valueOf(initialPosition.longitude + 0.005);
+        double delta = 0.002;
+        String lowerLeftLat = String.valueOf(initialPosition.latitude - delta);
+        String lowerLeftLon = String.valueOf(initialPosition.longitude - delta);
+        String upperRightLat = String.valueOf(initialPosition.latitude + delta);
+        String upperRightLon = String.valueOf(initialPosition.longitude + delta);
         String[] envelopeArray = {lowerLeftLat, lowerLeftLon, upperRightLat, upperRightLon};
         return envelopeArray;
     }
@@ -238,7 +243,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         // Add a marker at the inital position and move the camera
         Marker marker = mMap.addMarker(new MarkerOptions().position(initialPosition));
         marker.setTag("Initial Location");
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(initialPosition, 15));
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(initialPosition, 17));
 
         // Set a listener for marker click.
         mMap.setOnMarkerClickListener(this);
@@ -255,7 +260,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         initialPosition.latitude,
                         initialPosition.longitude,
                         results);
-                if (results[0] > 100.0 && canMakeServerRequest) {
+                if (results[0] > 150.0 && canMakeServerRequest) {
                     mRequestingLocationUpdates = false; // stop moving, since we're dragging
                     progressBar.setVisibility(View.VISIBLE);
                     initialPosition = newLocation;
@@ -288,7 +293,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         @Override
         protected void onPreExecute() {
             super.onPreExecute();
-            // probably don't need anything else
+            canMakeServerRequest = false;
         }
 
         /**
@@ -315,34 +320,38 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             URL url = createUrl(finalRequestString);
             int count;
             try {
-                URLConnection connection = url.openConnection();
-                connection.connect();
+                if (url != null) {
+                    URLConnection connection = url.openConnection();
+                    connection.connect();
 
-                // download the file
-                InputStream input = new BufferedInputStream(url.openStream(),
-                        8192);
+                    // download the file
+                    InputStream input = new BufferedInputStream(url.openStream(),
+                            8192);
 
-                // Output stream
-                OutputStream output = new FileOutputStream(
-                        getExternalStorageDirectory().toString()
-                        + "/download.kmz");
+                    String dirPath = Environment.getExternalStorageDirectory().toString();
+                    // delete if it exists already
+                    File file = new File(dirPath + "/download.kmz");
+                    file.delete();
 
-                byte data[] = new byte[1024];
+                    // Output stream
+                    OutputStream output = new FileOutputStream(
+                            getExternalStorageDirectory().toString()
+                                    + "/download.kmz");
 
-                long total = 0;
+                    byte data[] = new byte[1024];
 
-                while ((count = input.read(data)) != -1) {
-                    total += count;
-                    // writing data to file
-                    output.write(data, 0, count);
+                    while ((count = input.read(data)) != -1) {
+                        // writing data to file
+                        output.write(data, 0, count);
+                    }
+
+                    // flushing output
+                    output.flush();
+
+                    // closing streams
+                    output.close();
+                    input.close();
                 }
-
-                // flushing output
-                output.flush();
-
-                // closing streams
-                output.close();
-                input.close();
 
             } catch (Exception e) {
                 Log.e("Error: ", e.getMessage());
@@ -390,14 +399,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     layer.setOnFeatureClickListener(new KmlLayer.OnFeatureClickListener() {
                         @Override
                         public void onFeatureClick(Feature feature) {
-                            Log.i("KmlClick", "Feature clicked: " + feature.getId());
+                            Log.i("KmlClick", "Feature clicked: " + feature.getProperties().toString());
                         }
                     });
-                } catch (Exception e) {
+                } catch (XmlPullParserException | IOException e) {
                     // do something
                 }
             }
             progressBar.setVisibility(View.INVISIBLE);
+            canMakeServerRequest = true;
         }
     }
 

@@ -7,6 +7,7 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.VectorDrawable;
@@ -25,7 +26,7 @@ import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
 import android.widget.ProgressBar;
-import android.widget.Toast;
+import android.widget.TextView;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
@@ -79,6 +80,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private boolean canMakeServerRequest = true;
     private ProgressBar progressBar;
     private LatLng initialPosition;
+    private final int ZOOM_LEVEL = 17;
+    private TextView callout;
+    private String polygonID;
 
     // location stuff
     private LocationCallback mLocationCallback;
@@ -95,6 +99,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
+
+        callout = (TextView) findViewById(R.id.text_callout);
+        callout.setVisibility(View.INVISIBLE);
 
         // get initial position from shared preferences
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
@@ -145,7 +152,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         prefEditor.putString("lon", String.valueOf(currentPosition.longitude));
                         prefEditor.apply();
                         progressBar.setVisibility(View.VISIBLE);
-                        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(currentPosition, 15));
+                        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(currentPosition, ZOOM_LEVEL));
                         mMap.clear();
                         finalRequestString = generateString(selectedType, generateEnvelope());
                         // make new server request
@@ -183,10 +190,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private String[] generateEnvelope() {
         // build envelope from initialPosition
-        String lowerLeftLat = String.valueOf(initialPosition.latitude - 0.005);
-        String lowerLeftLon = String.valueOf(initialPosition.longitude - 0.005);
-        String upperRightLat = String.valueOf(initialPosition.latitude + 0.005);
-        String upperRightLon = String.valueOf(initialPosition.longitude + 0.005);
+        double delta = 0.002;
+        String lowerLeftLat = String.valueOf(initialPosition.latitude - delta);
+        String lowerLeftLon = String.valueOf(initialPosition.longitude - delta);
+        String upperRightLat = String.valueOf(initialPosition.latitude + delta);
+        String upperRightLon = String.valueOf(initialPosition.longitude + delta);
         String[] envelopeArray = {lowerLeftLat, lowerLeftLon, upperRightLat, upperRightLon};
         return envelopeArray;
     }
@@ -235,12 +243,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mMap = googleMap;
 
         // Add a marker at the inital position and move the camera
-        Marker marker = mMap.addMarker(new MarkerOptions().position(initialPosition));
-        marker.setTag("Initial Location");
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(initialPosition, 15));
+        // Marker marker = mMap.addMarker(new MarkerOptions().position(initialPosition));
+        // marker.setTag("Initial Location");
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(initialPosition, ZOOM_LEVEL));
 
         // Set a listener for marker click.
         mMap.setOnMarkerClickListener(this);
+
+        mMap.setOnCameraMoveListener(new GoogleMap.OnCameraMoveListener() {
+            @Override
+            public void onCameraMove() {
+                callout.setVisibility(View.INVISIBLE);
+            }
+        });
 
         // set camera move listener
         mMap.setOnCameraIdleListener(new GoogleMap.OnCameraIdleListener() {
@@ -271,7 +286,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public boolean onMarkerClick(Marker marker) {
         if (!marker.getTag().equals("Added location")) {
-            Toast.makeText(getApplicationContext(), marker.getTag().toString(), Toast.LENGTH_LONG).show();
+            callout.setText(marker.getTag().toString());
+            callout.setVisibility(View.VISIBLE);
         }
         return true;
     }
@@ -308,7 +324,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
             int collectionCount = testCollection.getGeometryLength();
 
+
+
             if (geometryType.equals("rings")) {
+                final ArrayList<Polygon> features = new ArrayList<>();
                 for (int i = 0; i < collectionCount; i++) {
                     // Instantiates a new Polygon object and adds points to define a rectangle
                     PolygonOptions rectOptions = new PolygonOptions()
@@ -323,14 +342,22 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     polygon.setPoints(testCollection.getGeometries().get(i).get(keyValue));
                     polygon.setTag(keyValue);
                     polygon.setClickable(true);
+                    polygon.setStrokeWidth(3);
+                    features.add(polygon);
                     mMap.setOnPolygonClickListener(new GoogleMap.OnPolygonClickListener() {
                         @Override
                         public void onPolygonClick(Polygon polygon) {
-                            Toast.makeText(getApplicationContext(), polygon.getTag().toString(), Toast.LENGTH_LONG).show();
+                            for (Polygon feature: features) {
+                                feature.setFillColor(Color.argb(0,0,0,0));
+                            }
+                            polygon.setFillColor(Color.rgb(255,250,205));
+                            callout.setText(polygon.getTag().toString());
+                            callout.setVisibility(View.VISIBLE);
                         }
                     });
                 }
             } else if (geometryType.equals("paths")) {
+                final ArrayList<Polyline> features = new ArrayList<>();
                 for (int i = 0; i < collectionCount; i++) {
                     // Instantiates a new Polyline object
                     PolylineOptions polyOptions = new PolylineOptions()
@@ -345,11 +372,20 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     polyline.setPoints(testCollection.getGeometries().get(i).get(keyValue));
                     polyline.setTag(keyValue);
                     polyline.setClickable(true);
+                    polyline.setWidth(3);
+                    features.add(polyline);
                     mMap.setOnPolylineClickListener(new GoogleMap.OnPolylineClickListener() {
                         @Override
                         public void onPolylineClick(Polyline polyline) {
-                            Toast.makeText(getApplicationContext(), polyline.getTag().toString(), Toast.LENGTH_LONG).show();
+                            for (Polyline feature: features) {
+                                feature.setWidth(3);
+                            }
+                            polyline.setWidth(7);
+                            callout.setText(polyline.getTag().toString());
+                            callout.setVisibility(View.VISIBLE);
                         }
+
+
                     });
                 }
             } else if (geometryType.equals("none")) {

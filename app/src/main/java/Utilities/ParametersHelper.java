@@ -31,6 +31,8 @@ public class ParametersHelper {
         layers.add(new LayerType("GeologicalAndSoils", "Geological Lines 250K", "paths", "15", "TYPE", "GID"));
         layers.add(new LayerType("GeologicalAndSoils", "Geological Polygons 250K", "rings", "16", "SYMBOL", "DESCRIPT"));
         layers.add(new LayerType("GeologicalAndSoils", "Soil Types", "rings", "19", "SOIL_CLASS", "SOIL_CODE"));
+        layers.add(new LayerType("TopographyAndRelief", "Tracks", "paths", "24", "TRANS_TYPE", "TSEG_FEAT"));
+        layers.add(new LayerType("OpenDataWFS", "Transport Segments", "paths", "42", "TRANS_TYPE", "TSEG_FEAT"));
         return layers;
     }
 }

@@ -1,23 +1,14 @@
 package exnihilum.com.au.listdataviewer;
 
-import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.graphics.Bitmap;
-import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.drawable.BitmapDrawable;
-import android.graphics.drawable.Drawable;
-import android.graphics.drawable.VectorDrawable;
 import android.location.Location;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
-import android.support.annotation.DrawableRes;
-import android.support.graphics.drawable.VectorDrawableCompat;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.content.ContextCompat;
@@ -82,7 +73,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private LatLng initialPosition;
     private final int ZOOM_LEVEL = 17;
     private TextView callout;
-    private String polygonID;
 
     // location stuff
     private LocationCallback mLocationCallback;
@@ -195,8 +185,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         String lowerLeftLon = String.valueOf(initialPosition.longitude - delta);
         String upperRightLat = String.valueOf(initialPosition.latitude + delta);
         String upperRightLon = String.valueOf(initialPosition.longitude + delta);
-        String[] envelopeArray = {lowerLeftLat, lowerLeftLon, upperRightLat, upperRightLon};
-        return envelopeArray;
+        return new String[]{lowerLeftLat, lowerLeftLon, upperRightLat, upperRightLon};
     }
 
     private String generateString(LayerType type, String[] envelope) {
@@ -250,42 +239,34 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         // Set a listener for marker click.
         mMap.setOnMarkerClickListener(this);
 
-        mMap.setOnCameraMoveListener(new GoogleMap.OnCameraMoveListener() {
-            @Override
-            public void onCameraMove() {
-                callout.setVisibility(View.INVISIBLE);
-            }
-        });
+        mMap.setOnCameraMoveListener(() -> callout.setVisibility(View.INVISIBLE));
 
         // set camera move listener
-        mMap.setOnCameraIdleListener(new GoogleMap.OnCameraIdleListener() {
-            @Override
-            public void onCameraIdle() {
-                LatLng newLocation = mMap.getCameraPosition().target;
-                float[] results = new float[3];
-                Location.distanceBetween(
-                        newLocation.latitude,
-                        newLocation.longitude,
-                        initialPosition.latitude,
-                        initialPosition.longitude,
-                        results);
-                if (results[0] > 100.0 && canMakeServerRequest) {
-                    mRequestingLocationUpdates = false; // stop moving, since we're dragging
-                    progressBar.setVisibility(View.VISIBLE);
-                    initialPosition = newLocation;
-                    mMap.clear();
-                    finalRequestString = generateString(selectedType, generateEnvelope());
-                    // make new server request
-                    LISTMapAsyncTask task = new LISTMapAsyncTask();
-                    task.execute();
-                }
+        mMap.setOnCameraIdleListener(() -> {
+            LatLng newLocation = mMap.getCameraPosition().target;
+            float[] results = new float[3];
+            Location.distanceBetween(
+                    newLocation.latitude,
+                    newLocation.longitude,
+                    initialPosition.latitude,
+                    initialPosition.longitude,
+                    results);
+            if (results[0] > 100.0 && canMakeServerRequest) {
+                mRequestingLocationUpdates = false; // stop moving, since we're dragging
+                progressBar.setVisibility(View.VISIBLE);
+                initialPosition = newLocation;
+                mMap.clear();
+                finalRequestString = generateString(selectedType, generateEnvelope());
+                // make new server request
+                LISTMapAsyncTask task = new LISTMapAsyncTask();
+                task.execute();
             }
         });
     }
 
     @Override
     public boolean onMarkerClick(Marker marker) {
-        if (!marker.getTag().equals("Added location")) {
+        if (marker.getTag() != null && !marker.getTag().equals("Added location")) {
             callout.setText(marker.getTag().toString());
             callout.setVisibility(View.VISIBLE);
         }
@@ -324,10 +305,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
             int collectionCount = testCollection.getGeometryLength();
 
-
-
-            if (geometryType.equals("rings")) {
-                final ArrayList<Polygon> features = new ArrayList<>();
+            switch (geometryType) {
+                case "rings":
+                final ArrayList<Polygon> polyFeatures = new ArrayList<>();
                 for (int i = 0; i < collectionCount; i++) {
                     // Instantiates a new Polygon object and adds points to define a rectangle
                     PolygonOptions rectOptions = new PolygonOptions()
@@ -343,21 +323,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     polygon.setTag(keyValue);
                     polygon.setClickable(true);
                     polygon.setStrokeWidth(3);
-                    features.add(polygon);
-                    mMap.setOnPolygonClickListener(new GoogleMap.OnPolygonClickListener() {
-                        @Override
-                        public void onPolygonClick(Polygon polygon) {
-                            for (Polygon feature: features) {
-                                feature.setFillColor(Color.argb(0,0,0,0));
-                            }
-                            polygon.setFillColor(Color.rgb(255,250,205));
-                            callout.setText(polygon.getTag().toString());
-                            callout.setVisibility(View.VISIBLE);
+                    polyFeatures.add(polygon);
+                    mMap.setOnPolygonClickListener(polygon1 -> {
+                        for (Polygon feature: polyFeatures) {
+                            feature.setFillColor(Color.argb(0,0,0,0));
                         }
+                        polygon1.setFillColor(Color.rgb(255,250,205));
+                        if (polygon1.getTag() != null) {
+                            callout.setText(polygon1.getTag().toString());
+                        }
+                        callout.setVisibility(View.VISIBLE);
                     });
                 }
-            } else if (geometryType.equals("paths")) {
-                final ArrayList<Polyline> features = new ArrayList<>();
+                break;
+                case "paths":
+                final ArrayList<Polyline> lineFeatures = new ArrayList<>();
                 for (int i = 0; i < collectionCount; i++) {
                     // Instantiates a new Polyline object
                     PolylineOptions polyOptions = new PolylineOptions()
@@ -373,22 +353,20 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     polyline.setTag(keyValue);
                     polyline.setClickable(true);
                     polyline.setWidth(3);
-                    features.add(polyline);
-                    mMap.setOnPolylineClickListener(new GoogleMap.OnPolylineClickListener() {
-                        @Override
-                        public void onPolylineClick(Polyline polyline) {
-                            for (Polyline feature: features) {
-                                feature.setWidth(3);
-                            }
-                            polyline.setWidth(7);
-                            callout.setText(polyline.getTag().toString());
-                            callout.setVisibility(View.VISIBLE);
+                    lineFeatures.add(polyline);
+                    mMap.setOnPolylineClickListener(polyline1 -> {
+                        for (Polyline feature: lineFeatures) {
+                            feature.setWidth(3);
                         }
-
-
+                        polyline1.setWidth(7);
+                        if (polyline1.getTag() != null) {
+                            callout.setText(polyline1.getTag().toString());
+                        }
+                        callout.setVisibility(View.VISIBLE);
                     });
                 }
-            } else if (geometryType.equals("none")) {
+                break;
+                case "none":
                 for (int i = 0; i < collectionCount; i++) {
                     final String keyValue = testCollection.getGeometries().get(i).keySet().toArray()[0].toString();
                     // Instantiates a new marker
@@ -408,7 +386,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
          * Returns new URL object from the given string URL.
          */
         private URL createUrl(String stringUrl) {
-            URL url = null;
+            URL url;
             try {
                 url = new URL(stringUrl);
             } catch (MalformedURLException exception) {
@@ -491,7 +469,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 // setup object to hold data
                 DataCollection dataCollection = new DataCollection();
                 ArrayList<HashMap<String, ArrayList<LatLng>>> geometryToSet =
-                        new ArrayList<HashMap<String, ArrayList<LatLng>>>();
+                        new ArrayList<>();
                 dataCollection.setGeometries(geometryToSet);
 
                 JSONObject baseJsonResponse = new JSONObject(listMapJSON);
@@ -504,7 +482,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     JSONObject paramAttributes = attributes.getJSONObject("attributes");
                     String param1 = paramAttributes.getString(PARAM1);
                     String param2 = paramAttributes.getString(PARAM2);
-                    String tagToSet = "";
+                    String tagToSet;
                     if (param1.equals("null") && param2.equals("null")) {
                         tagToSet = ("No" + PARAM1 + " or " + PARAM2);
                     } else if (param1.equals("null")) {
@@ -562,32 +540,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
     }
 
-    public static Bitmap getBitmapFromDrawable(Context context, @DrawableRes int drawableId) {
-        Drawable drawable = ContextCompat.getDrawable(context, drawableId);
-
-        if (drawable instanceof BitmapDrawable) {
-            return ((BitmapDrawable) drawable).getBitmap();
-        } else if (drawable instanceof VectorDrawable || drawable instanceof VectorDrawableCompat) {
-            Bitmap bitmap = Bitmap.createBitmap(drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
-            Canvas canvas = new Canvas(bitmap);
-            drawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
-            drawable.draw(canvas);
-
-            return bitmap;
-        } else {
-            throw new IllegalArgumentException("unsupported drawable type");
-        }
-    }
-
     // location stuff
     @Override
     protected void onPause() {
         super.onPause();
-        // stopLocationUpdates();
+        stopLocationUpdates();
     }
 
     private void stopLocationUpdates() {
         mFusedLocationClient.removeLocationUpdates(mLocationCallback);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        checkLocationPermission();
     }
 
     // location permission code
@@ -606,14 +573,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 new AlertDialog.Builder(this)
                         .setTitle(R.string.title_location_permission)
                         .setMessage(R.string.text_location_permission)
-                        .setPositiveButton(R.string.ok, new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialogInterface, int i) {
-                                //Prompt the user once explanation has been shown
-                                ActivityCompat.requestPermissions(MapsActivity.this,
-                                        new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION},
-                                        MY_PERMISSIONS_REQUEST_LOCATION);
-                            }
+                        .setPositiveButton(R.string.ok, (dialogInterface, i) -> {
+                            //Prompt the user once explanation has been shown
+                            ActivityCompat.requestPermissions(MapsActivity.this,
+                                    new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION},
+                                    MY_PERMISSIONS_REQUEST_LOCATION);
                         })
                         .create()
                         .show();

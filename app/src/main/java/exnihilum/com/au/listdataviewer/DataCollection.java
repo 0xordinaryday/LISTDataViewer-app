@@ -15,7 +15,7 @@ public class DataCollection {
     private String symbol = "";
     private ArrayList<HashMap<String,ArrayList<LatLng>>> geometries;
 
-    public DataCollection() {
+    DataCollection() {
         this.symbol = "";
         this.geometries = null;
     }
@@ -28,19 +28,29 @@ public class DataCollection {
         this.symbol = symbol;
     }
 
-    public ArrayList<HashMap<String,ArrayList<LatLng>>> getGeometries() {
+    ArrayList<HashMap<String,ArrayList<LatLng>>> getGeometries() {
         return geometries;
     }
 
-    public void setGeometries(ArrayList<HashMap<String,ArrayList<LatLng>>> geometries) {
+    void setGeometries(ArrayList<HashMap<String,ArrayList<LatLng>>> geometries) {
         this.geometries = geometries;
     }
 
-    public void addMapToGeometry(HashMap<String,ArrayList<LatLng>> mapToAdd) {
+    void addMapToGeometry(HashMap<String,ArrayList<LatLng>> mapToAdd) {
         this.geometries.add(mapToAdd);
     }
 
-    public int getGeometryLength() {
+    ArrayList<String> getKeys() {
+        ArrayList<String> allKeys = new ArrayList<>();
+        for (HashMap hashMap:geometries) {
+            for (Object key:hashMap.keySet()) {
+                allKeys.add(key.toString());
+            }
+        }
+        return allKeys;
+    }
+
+    int getGeometryLength() {
         return this.geometries.size();
     }
 

@@ -28,6 +28,7 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
@@ -49,6 +50,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 
 import Utilities.ParametersHelper;
@@ -80,6 +82,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private FusedLocationProviderClient mFusedLocationClient;
     public static final int MY_PERMISSIONS_REQUEST_LOCATION = 99;
     LocationRequest mLocationRequest = new LocationRequest();
+
+    // arraylist for markers
+    ArrayList<Marker> markers = new ArrayList<>();
 
     /**
      * URL to query
@@ -137,7 +142,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         initialPosition = currentPosition;
                         // save to shared preferences
                         SharedPreferences.Editor prefEditor =
-                        PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).edit();
+                                PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).edit();
                         prefEditor.putString("lat", String.valueOf(currentPosition.latitude));
                         prefEditor.putString("lon", String.valueOf(currentPosition.longitude));
                         prefEditor.apply();
@@ -257,6 +262,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 initialPosition = newLocation;
                 mMap.clear();
                 finalRequestString = generateString(selectedType, generateEnvelope());
+                // Log.i(LOG_TAG, finalRequestString);
                 // make new server request
                 LISTMapAsyncTask task = new LISTMapAsyncTask();
                 task.execute();
@@ -266,9 +272,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     @Override
     public boolean onMarkerClick(Marker marker) {
+        for (Marker eachMarker: markers) {
+            eachMarker.setIcon(BitmapDescriptorFactory.defaultMarker());
+        }
         if (marker.getTag() != null && !marker.getTag().equals("Added location")) {
             callout.setText(marker.getTag().toString());
             callout.setVisibility(View.VISIBLE);
+            marker.setIcon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE));
         }
         return true;
     }
@@ -307,77 +317,82 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
             switch (geometryType) {
                 case "rings":
-                final ArrayList<Polygon> polyFeatures = new ArrayList<>();
-                for (int i = 0; i < collectionCount; i++) {
-                    // Instantiates a new Polygon object and adds points to define a rectangle
-                    PolygonOptions rectOptions = new PolygonOptions()
-                            .add(new LatLng(37.35, -122.0),
-                                    new LatLng(37.45, -122.0),
-                                    new LatLng(37.45, -122.2),
-                                    new LatLng(37.35, -122.2),
-                                    new LatLng(37.35, -122.0));
-                    // Get back the mutable Polygon
-                    Polygon polygon = mMap.addPolygon(rectOptions);
-                    final String keyValue = testCollection.getGeometries().get(i).keySet().toArray()[0].toString();
-                    polygon.setPoints(testCollection.getGeometries().get(i).get(keyValue));
-                    polygon.setTag(keyValue);
-                    polygon.setClickable(true);
-                    polygon.setStrokeWidth(3);
-                    polyFeatures.add(polygon);
-                    mMap.setOnPolygonClickListener(polygon1 -> {
-                        for (Polygon feature: polyFeatures) {
-                            feature.setFillColor(Color.argb(0,0,0,0));
+                    Log.i(LOG_TAG, Arrays.toString(testCollection.getKeys().toArray()));
+                    final ArrayList<Polygon> polyFeatures = new ArrayList<>();
+                    for (int i = 0; i < collectionCount; i++) {
+                        // Instantiates a new Polygon object and adds points to define a rectangle
+                        PolygonOptions rectOptions = new PolygonOptions()
+                                .add(new LatLng(37.35, -122.0),
+                                        new LatLng(37.45, -122.0),
+                                        new LatLng(37.45, -122.2),
+                                        new LatLng(37.35, -122.2),
+                                        new LatLng(37.35, -122.0));
+                        // Get back the mutable Polygon
+                        Polygon polygon = mMap.addPolygon(rectOptions);
+                        final String keyValue = testCollection.getGeometries().get(i).keySet().toArray()[0].toString();
+                        if (keyValue.contains("polygonHole")) {
+                            continue; // skip the rest of this iteration, we hit a hole
                         }
-                        polygon1.setFillColor(Color.rgb(255,250,205));
-                        if (polygon1.getTag() != null) {
-                            callout.setText(polygon1.getTag().toString());
-                        }
-                        callout.setVisibility(View.VISIBLE);
-                    });
-                }
-                break;
+                        polygon.setPoints(testCollection.getGeometries().get(i).get(keyValue));
+                        polygon.setTag(keyValue);
+                        polygon.setClickable(true);
+                        polygon.setStrokeWidth(3);
+                        polyFeatures.add(polygon);
+                        mMap.setOnPolygonClickListener(polygon1 -> {
+                            for (Polygon feature : polyFeatures) {
+                                feature.setFillColor(Color.argb(0, 0, 0, 0));
+                            }
+                            polygon1.setFillColor(Color.rgb(255, 250, 205));
+                            if (polygon1.getTag() != null) {
+                                callout.setText(polygon1.getTag().toString());
+                            }
+                            callout.setVisibility(View.VISIBLE);
+                        });
+                    }
+                    break;
                 case "paths":
-                final ArrayList<Polyline> lineFeatures = new ArrayList<>();
-                for (int i = 0; i < collectionCount; i++) {
-                    // Instantiates a new Polyline object
-                    PolylineOptions polyOptions = new PolylineOptions()
-                            .add(new LatLng(37.35, -122.0),
-                                    new LatLng(37.45, -122.0),
-                                    new LatLng(37.45, -122.2),
-                                    new LatLng(37.35, -122.2),
-                                    new LatLng(37.35, -122.0));
-                    // Get back the mutable Polyline
-                    Polyline polyline = mMap.addPolyline(polyOptions);
-                    final String keyValue = testCollection.getGeometries().get(i).keySet().toArray()[0].toString();
-                    polyline.setPoints(testCollection.getGeometries().get(i).get(keyValue));
-                    polyline.setTag(keyValue);
-                    polyline.setClickable(true);
-                    polyline.setWidth(3);
-                    lineFeatures.add(polyline);
-                    mMap.setOnPolylineClickListener(polyline1 -> {
-                        for (Polyline feature: lineFeatures) {
-                            feature.setWidth(3);
-                        }
-                        polyline1.setWidth(7);
-                        if (polyline1.getTag() != null) {
-                            callout.setText(polyline1.getTag().toString());
-                        }
-                        callout.setVisibility(View.VISIBLE);
-                    });
-                }
-                break;
+                    final ArrayList<Polyline> lineFeatures = new ArrayList<>();
+                    for (int i = 0; i < collectionCount; i++) {
+                        // Instantiates a new Polyline object
+                        PolylineOptions polyOptions = new PolylineOptions()
+                                .add(new LatLng(37.35, -122.0),
+                                        new LatLng(37.45, -122.0),
+                                        new LatLng(37.45, -122.2),
+                                        new LatLng(37.35, -122.2),
+                                        new LatLng(37.35, -122.0));
+                        // Get back the mutable Polyline
+                        Polyline polyline = mMap.addPolyline(polyOptions);
+                        final String keyValue = testCollection.getGeometries().get(i).keySet().toArray()[0].toString();
+                        polyline.setPoints(testCollection.getGeometries().get(i).get(keyValue));
+                        polyline.setTag(keyValue);
+                        polyline.setClickable(true);
+                        polyline.setWidth(3);
+                        lineFeatures.add(polyline);
+                        mMap.setOnPolylineClickListener(polyline1 -> {
+                            for (Polyline feature : lineFeatures) {
+                                feature.setWidth(3);
+                            }
+                            polyline1.setWidth(7);
+                            if (polyline1.getTag() != null) {
+                                callout.setText(polyline1.getTag().toString());
+                            }
+                            callout.setVisibility(View.VISIBLE);
+                        });
+                    }
+                    break;
                 case "none":
-                for (int i = 0; i < collectionCount; i++) {
-                    final String keyValue = testCollection.getGeometries().get(i).keySet().toArray()[0].toString();
-                    // Instantiates a new marker
-                    MarkerOptions markerOptions = new MarkerOptions()
-                            .position(testCollection.getGeometries().get(i).get(keyValue).get(0))
-                            .title(keyValue);
-                    Marker mMarker = mMap.addMarker(markerOptions);
-                    mMarker.setTag(keyValue);
-                }
+                    markers.clear();
+                    for (int i = 0; i < collectionCount; i++) {
+                        final String keyValue = testCollection.getGeometries().get(i).keySet().toArray()[0].toString();
+                        // Instantiates a new marker
+                        MarkerOptions markerOptions = new MarkerOptions()
+                                .position(testCollection.getGeometries().get(i).get(keyValue).get(0))
+                                .title(keyValue);
+                        Marker mMarker = mMap.addMarker(markerOptions);
+                        mMarker.setTag(keyValue);
+                        markers.add(mMarker);
+                    }
             }
-            Log.i(LOG_TAG, "onpostexecute completed");
             canMakeServerRequest = true;
             progressBar.setVisibility(View.INVISIBLE);
         }
@@ -492,7 +507,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     } else {
                         tagToSet = (PARAM1 + ": " + param1 + "\n" + PARAM2 + ": " + param2);
                     }
-                    HashMap<String, ArrayList<LatLng>> mapToSet = new HashMap<String, ArrayList<LatLng>>();
+                    HashMap<String, ArrayList<LatLng>> mapToSet = new HashMap<>();
+                    HashMap<String, ArrayList<LatLng>> holeMapSet = new HashMap<>(); // for polygon holes
 
                     JSONObject geometry = attributes.getJSONObject("geometry");
                     /*
@@ -502,7 +518,49 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     * they look the same otherwise
                      */
 
-                    if (geometryType.equals("rings") || geometryType.equals("paths")) {
+                    if (geometryType.equals("rings")) {
+                        JSONArray geometryArray = geometry.getJSONArray(geometryType);
+                        // If there are results in the features array
+                        if (geometryArray.length() == 1) { // has only one feature
+                            ArrayList<LatLng> newGeometryFeature = new ArrayList<>();
+                            // extract out the first feature as the main
+                            JSONArray firstArray = geometryArray.getJSONArray(0);
+                            int featureLength = firstArray.length();
+                            for (int j = 0; j < featureLength; j++) {
+                                try {
+                                    double Lon = (firstArray.getJSONArray(j).getDouble(0));
+                                    double Lat = (firstArray.getJSONArray(j).getDouble(1));
+                                    LatLng toAppend = new LatLng(Lat, Lon);
+                                    newGeometryFeature.add(toAppend);
+                                } catch (NullPointerException e) {
+                                    Log.i(LOG_TAG, "value was null");
+                                }
+                            }
+                            mapToSet.put(tagToSet, newGeometryFeature);
+                        } else if (geometryArray.length() > 1) {
+                            for (int counter = 0; counter < geometryArray.length(); counter++) {
+                                ArrayList<LatLng> newGeometryFeature = new ArrayList<>();
+                                JSONArray workingArray = geometryArray.getJSONArray(counter);
+                                int featureLength = workingArray.length();
+                                for (int j = 0; j < featureLength; j++) {
+                                    try {
+                                        double Lon = (workingArray.getJSONArray(j).getDouble(0));
+                                        double Lat = (workingArray.getJSONArray(j).getDouble(1));
+                                        LatLng toAppend = new LatLng(Lat, Lon);
+                                        newGeometryFeature.add(toAppend);
+                                    } catch (NullPointerException e) {
+                                        Log.i(LOG_TAG, "value was null");
+                                    }
+                                }
+                                if (counter == 0) {
+                                    mapToSet.put(tagToSet, newGeometryFeature);
+                                } else {
+                                    String holeTag = tagToSet + "_polygonHole_" + String.valueOf(counter);
+                                    holeMapSet.put(holeTag, newGeometryFeature);
+                                }
+                            }
+                        }
+                    } else if (geometryType.equals("paths")) {
                         JSONArray geometryArray = geometry.getJSONArray(geometryType);
                         ArrayList<LatLng> newGeometryFeature = new ArrayList<>();
                         // If there are results in the features array
@@ -531,6 +589,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         mapToSet.put(tagToSet, newGeometryFeature);
                     }
                     dataCollection.addMapToGeometry(mapToSet);
+                    if (!holeMapSet.isEmpty()) {
+                        dataCollection.addMapToGeometry(holeMapSet);
+                    }
                 }
                 return dataCollection;
             } catch (JSONException e) {

@@ -36,6 +36,7 @@ import com.google.android.gms.maps.model.Polygon;
 import com.google.android.gms.maps.model.PolygonOptions;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
+import com.google.maps.android.SphericalUtil;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -52,6 +53,7 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 
 import Utilities.ParametersHelper;
 
@@ -262,7 +264,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 initialPosition = newLocation;
                 mMap.clear();
                 finalRequestString = generateString(selectedType, generateEnvelope());
-                // Log.i(LOG_TAG, finalRequestString);
                 // make new server request
                 LISTMapAsyncTask task = new LISTMapAsyncTask();
                 task.execute();
@@ -281,6 +282,27 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             marker.setIcon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE));
         }
         return true;
+    }
+
+    private boolean isClockwise (Polygon polygon) {
+        List<LatLng> points = polygon.getPoints();
+        double signedArea = 0;
+        for (int i = 0; i < points.size(); i++) {
+            double x1 = points.get(i).longitude;
+            double y1 = points.get(i).latitude;
+            double x2;
+            double y2;
+            if (i == points.size() - 1) {
+                x2 = points.get(0).longitude;
+                y2 = points.get(0).latitude;
+            } else {
+                x2 = points.get(i + 1).longitude;
+                y2 = points.get(i + 1).latitude;
+            }
+            signedArea += (x1 * y2 - x2 * y1);
+        }
+        Log.i(LOG_TAG, String.valueOf(signedArea/2));
+        return (signedArea / 2) > 0;
     }
 
     /**
@@ -330,11 +352,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         // Get back the mutable Polygon
                         Polygon polygon = mMap.addPolygon(rectOptions);
                         final String keyValue = testCollection.getGeometries().get(i).keySet().toArray()[0].toString();
-                        if (keyValue.contains("polygonHole")) {
-                            continue; // skip the rest of this iteration, we hit a hole
-                        }
                         polygon.setPoints(testCollection.getGeometries().get(i).get(keyValue));
                         polygon.setTag(keyValue);
+
+                        if (SphericalUtil.computeSignedArea(polygon.getPoints()) > 0) {
+                            continue; // don't add to map
+                        }
+
                         polygon.setClickable(true);
                         polygon.setStrokeWidth(3);
                         polyFeatures.add(polygon);
@@ -521,23 +545,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     if (geometryType.equals("rings")) {
                         JSONArray geometryArray = geometry.getJSONArray(geometryType);
                         // If there are results in the features array
-                        if (geometryArray.length() == 1) { // has only one feature
-                            ArrayList<LatLng> newGeometryFeature = new ArrayList<>();
-                            // extract out the first feature as the main
-                            JSONArray firstArray = geometryArray.getJSONArray(0);
-                            int featureLength = firstArray.length();
-                            for (int j = 0; j < featureLength; j++) {
-                                try {
-                                    double Lon = (firstArray.getJSONArray(j).getDouble(0));
-                                    double Lat = (firstArray.getJSONArray(j).getDouble(1));
-                                    LatLng toAppend = new LatLng(Lat, Lon);
-                                    newGeometryFeature.add(toAppend);
-                                } catch (NullPointerException e) {
-                                    Log.i(LOG_TAG, "value was null");
-                                }
-                            }
-                            mapToSet.put(tagToSet, newGeometryFeature);
-                        } else if (geometryArray.length() > 1) {
+                        if (geometryArray.length() >= 1) {
                             for (int counter = 0; counter < geometryArray.length(); counter++) {
                                 ArrayList<LatLng> newGeometryFeature = new ArrayList<>();
                                 JSONArray workingArray = geometryArray.getJSONArray(counter);
@@ -555,8 +563,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                 if (counter == 0) {
                                     mapToSet.put(tagToSet, newGeometryFeature);
                                 } else {
-                                    String holeTag = tagToSet + "_polygonHole_" + String.valueOf(counter);
-                                    holeMapSet.put(holeTag, newGeometryFeature);
+                                    String holeTag = tagToSet + "_" + String.valueOf(counter);
+                                    mapToSet.put(holeTag, newGeometryFeature);
                                 }
                             }
                         }

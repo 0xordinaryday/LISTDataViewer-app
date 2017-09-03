@@ -33,6 +33,10 @@ public class ParametersHelper {
         layers.add(new LayerType("GeologicalAndSoils", "Soil Types", "rings", "19", "SOIL_CLASS", "SOIL_CODE"));
         layers.add(new LayerType("TopographyAndRelief", "Tracks", "paths", "24", "TRANS_TYPE", "TSEG_FEAT"));
         layers.add(new LayerType("OpenDataWFS", "Transport Segments", "paths", "42", "TRANS_TYPE", "TSEG_FEAT"));
+        layers.add(new LayerType("Infrastructure", "TasWater Water Hydrant", "none", "2", "OBJECTID", "ASSETID"));
+        layers.add(new LayerType("Infrastructure", "TasWater Sewer Maintenance Hole", "none", "3", "OBJECTID", "ASSETID"));
+        layers.add(new LayerType("Infrastructure", "TasWater Water Main", "paths", "4", "DIAMETER", "MATERIAL"));
+        layers.add(new LayerType("Infrastructure", "TasWater Sewer Main", "paths", "5", "DIAMETER", "MATERIAL"));
         return layers;
     }
 }

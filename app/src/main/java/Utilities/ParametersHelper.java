@@ -39,4 +39,32 @@ public class ParametersHelper {
         layers.add(new LayerType("Infrastructure", "TasWater Sewer Main", "paths", "5", "DIAMETER", "MATERIAL"));
         return layers;
     }
+
+    public static ArrayList<String> getCategories() {
+        ArrayList<String> categories = new ArrayList<String>();
+        categories.add("ABSdata");
+        categories.add("CadastreAndAdministrative");
+        categories.add("CadastreParcels");
+        categories.add("ClimateChange");
+        categories.add("COPpublic");
+        categories.add("Education");
+        categories.add("EmergencyManagementPublic");
+        categories.add("FloodMappingPublic");
+        categories.add("GeologicalAndSoils");
+        categories.add("Indexes");
+        categories.add("Infrastructure");
+        categories.add("MarineAndCoastal");
+        categories.add("MAXBiosecurityPublic");
+        categories.add("NaturalEnvironment");
+        categories.add("NVAdata");
+        categories.add("OpenDataWFS");
+        categories.add("PlacenamePoints");
+        categories.add("Planning");
+        categories.add("PlanningOnline");
+        categories.add("RasterMisc");
+        categories.add("SearchService");
+        categories.add("TopographyAndRelief");
+        categories.add("WealthFromWater");
+        return categories;
+    }
 }

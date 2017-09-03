@@ -2,9 +2,11 @@
     <string name="app_name">LISTData Viewer</string>
     <string name="title_activity_maps">Map</string>
     <string name="spinner_heading">Choose a dataset to view</string>
+    <string name="category_heading">Choose a category of data to view</string>
     <string name="ok">OK</string>
     <string name="title_location_permission">OK to use location?</string>
     <string name="text_location_permission">In order for the app to use your location, you
         need to grant this permission. You can choose not to, but the app will not display
         your location.</string>
+    <string name="go_button">Go</string>
 </resources>

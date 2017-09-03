@@ -36,7 +36,6 @@ import com.google.android.gms.maps.model.Polygon;
 import com.google.android.gms.maps.model.PolygonOptions;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
-import com.google.maps.android.SphericalUtil;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -51,9 +50,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 
 import Utilities.ParametersHelper;
 
@@ -227,12 +224,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     /**
      * Manipulates the map once available.
-     * This callback is triggered when the map is ready to be used.
-     * This is where we can add markers or lines, add listeners or move the camera. In this case,
-     * we just add a marker near Sydney, Australia.
-     * If Google Play services is not installed on the device, the user will be prompted to install
-     * it inside the SupportMapFragment. This method will only be triggered once the user has
-     * installed Google Play services and returned to the app.
      */
     @Override
     public void onMapReady(GoogleMap googleMap) {
@@ -284,27 +275,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         return true;
     }
 
-    private boolean isClockwise (Polygon polygon) {
-        List<LatLng> points = polygon.getPoints();
-        double signedArea = 0;
-        for (int i = 0; i < points.size(); i++) {
-            double x1 = points.get(i).longitude;
-            double y1 = points.get(i).latitude;
-            double x2;
-            double y2;
-            if (i == points.size() - 1) {
-                x2 = points.get(0).longitude;
-                y2 = points.get(0).latitude;
-            } else {
-                x2 = points.get(i + 1).longitude;
-                y2 = points.get(i + 1).latitude;
-            }
-            signedArea += (x1 * y2 - x2 * y1);
-        }
-        Log.i(LOG_TAG, String.valueOf(signedArea/2));
-        return (signedArea / 2) > 0;
-    }
-
     /**
      * {@link AsyncTask} to perform the network request on a background thread, and then
      * DO THE THINGS
@@ -339,14 +309,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
             switch (geometryType) {
                 case "rings":
-                    Log.i(LOG_TAG, Arrays.toString(testCollection.getKeys().toArray()));
+                    // Log.i(LOG_TAG, Arrays.toString(testCollection.getKeys().toArray()));
                     final ArrayList<Polygon> polyFeatures = new ArrayList<>();
                     for (int i = 0; i < collectionCount; i++) {
                         // Instantiates a new Polygon object and adds points to define a rectangle
                         PolygonOptions rectOptions = new PolygonOptions()
                                 .add(new LatLng(37.35, -122.0),
                                         new LatLng(37.45, -122.0),
-                                        new LatLng(37.45, -122.2),
                                         new LatLng(37.35, -122.2),
                                         new LatLng(37.35, -122.0));
                         // Get back the mutable Polygon
@@ -354,11 +323,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         final String keyValue = testCollection.getGeometries().get(i).keySet().toArray()[0].toString();
                         polygon.setPoints(testCollection.getGeometries().get(i).get(keyValue));
                         polygon.setTag(keyValue);
-
-                        if (SphericalUtil.computeSignedArea(polygon.getPoints()) > 0) {
-                            continue; // don't add to map
-                        }
-
                         polygon.setClickable(true);
                         polygon.setStrokeWidth(3);
                         polyFeatures.add(polygon);
@@ -380,10 +344,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         // Instantiates a new Polyline object
                         PolylineOptions polyOptions = new PolylineOptions()
                                 .add(new LatLng(37.35, -122.0),
-                                        new LatLng(37.45, -122.0),
-                                        new LatLng(37.45, -122.2),
-                                        new LatLng(37.35, -122.2),
-                                        new LatLng(37.35, -122.0));
+                                        new LatLng(37.45, -122.0));
                         // Get back the mutable Polyline
                         Polyline polyline = mMap.addPolyline(polyOptions);
                         final String keyValue = testCollection.getGeometries().get(i).keySet().toArray()[0].toString();
@@ -532,7 +493,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         tagToSet = (PARAM1 + ": " + param1 + "\n" + PARAM2 + ": " + param2);
                     }
                     HashMap<String, ArrayList<LatLng>> mapToSet = new HashMap<>();
-                    HashMap<String, ArrayList<LatLng>> holeMapSet = new HashMap<>(); // for polygon holes
 
                     JSONObject geometry = attributes.getJSONObject("geometry");
                     /*
@@ -545,7 +505,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     if (geometryType.equals("rings")) {
                         JSONArray geometryArray = geometry.getJSONArray(geometryType);
                         // If there are results in the features array
-                        if (geometryArray.length() >= 1) {
+                        if (geometryArray.length() > 0) {
                             for (int counter = 0; counter < geometryArray.length(); counter++) {
                                 ArrayList<LatLng> newGeometryFeature = new ArrayList<>();
                                 JSONArray workingArray = geometryArray.getJSONArray(counter);
@@ -597,9 +557,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         mapToSet.put(tagToSet, newGeometryFeature);
                     }
                     dataCollection.addMapToGeometry(mapToSet);
-                    if (!holeMapSet.isEmpty()) {
-                        dataCollection.addMapToGeometry(holeMapSet);
-                    }
                 }
                 return dataCollection;
             } catch (JSONException e) {

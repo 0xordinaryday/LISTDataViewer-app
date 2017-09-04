@@ -36,6 +36,7 @@ import com.google.android.gms.maps.model.Polygon;
 import com.google.android.gms.maps.model.PolygonOptions;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
+import com.google.maps.android.SphericalUtil;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -311,31 +312,42 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 case "rings":
                     // Log.i(LOG_TAG, Arrays.toString(testCollection.getKeys().toArray()));
                     final ArrayList<Polygon> polyFeatures = new ArrayList<>();
+                    Log.i("Collection count is", String.valueOf(collectionCount));
                     for (int i = 0; i < collectionCount; i++) {
-                        // Instantiates a new Polygon object and adds points to define a rectangle
-                        PolygonOptions rectOptions = new PolygonOptions()
-                                .add(new LatLng(37.35, -122.0),
-                                        new LatLng(37.45, -122.0),
-                                        new LatLng(37.35, -122.2),
-                                        new LatLng(37.35, -122.0));
-                        // Get back the mutable Polygon
-                        Polygon polygon = mMap.addPolygon(rectOptions);
-                        final String keyValue = testCollection.getGeometries().get(i).keySet().toArray()[0].toString();
-                        polygon.setPoints(testCollection.getGeometries().get(i).get(keyValue));
-                        polygon.setTag(keyValue);
-                        polygon.setClickable(true);
-                        polygon.setStrokeWidth(3);
-                        polyFeatures.add(polygon);
-                        mMap.setOnPolygonClickListener(polygon1 -> {
-                            for (Polygon feature : polyFeatures) {
-                                feature.setFillColor(Color.argb(0, 0, 0, 0));
+                        /*
+
+                         */
+                        int numberOfKeys = testCollection.getGeometries().get(i).keySet().size();
+                        for (int j = 0; j < numberOfKeys; j++) {
+                            // Instantiates a new Polygon object and adds points to define a rectangle
+                            PolygonOptions rectOptions = new PolygonOptions()
+                                    .add(new LatLng(37.35, -122.0),
+                                            new LatLng(37.45, -122.0),
+                                            new LatLng(37.35, -122.2),
+                                            new LatLng(37.35, -122.0));
+                            // Get back the mutable Polygon
+                            Polygon polygon = mMap.addPolygon(rectOptions);
+                            final String keyValue = testCollection.getGeometries().get(i).keySet().toArray()[j].toString();
+                            polygon.setPoints(testCollection.getGeometries().get(i).get(keyValue));
+                            if (SphericalUtil.computeSignedArea(polygon.getPoints()) > 0) {
+                                polygon.remove();
+                                continue;
                             }
-                            polygon1.setFillColor(Color.rgb(255, 250, 205));
-                            if (polygon1.getTag() != null) {
-                                callout.setText(polygon1.getTag().toString());
-                            }
-                            callout.setVisibility(View.VISIBLE);
-                        });
+                            polygon.setTag(keyValue);
+                            polygon.setClickable(true);
+                            polygon.setStrokeWidth(3);
+                            polyFeatures.add(polygon);
+                            mMap.setOnPolygonClickListener(polygon1 -> {
+                                for (Polygon feature : polyFeatures) {
+                                    feature.setFillColor(Color.argb(0, 0, 0, 0));
+                                }
+                                polygon1.setFillColor(Color.rgb(255, 250, 205));
+                                if (polygon1.getTag() != null) {
+                                    callout.setText(polygon1.getTag().toString());
+                                }
+                                callout.setVisibility(View.VISIBLE);
+                            });
+                        }
                     }
                     break;
                 case "paths":
@@ -502,7 +514,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     * they look the same otherwise
                      */
 
-                    if (geometryType.equals("rings")) {
+                    if (geometryType.equals("rings") || geometryType.equals("paths")) {
                         JSONArray geometryArray = geometry.getJSONArray(geometryType);
                         // If there are results in the features array
                         if (geometryArray.length() > 0) {
@@ -527,26 +539,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                     mapToSet.put(holeTag, newGeometryFeature);
                                 }
                             }
-                        }
-                    } else if (geometryType.equals("paths")) {
-                        JSONArray geometryArray = geometry.getJSONArray(geometryType);
-                        ArrayList<LatLng> newGeometryFeature = new ArrayList<>();
-                        // If there are results in the features array
-                        if (geometryArray.length() > 0) {
-                            // Extract out the first feature (which is a path or polygon)
-                            JSONArray firstArray = geometryArray.getJSONArray(0);
-                            int featureLength = firstArray.length();
-                            for (int j = 0; j < featureLength; j++) {
-                                try {
-                                    double Lon = (firstArray.getJSONArray(j).getDouble(0));
-                                    double Lat = (firstArray.getJSONArray(j).getDouble(1));
-                                    LatLng toAppend = new LatLng(Lat, Lon);
-                                    newGeometryFeature.add(toAppend);
-                                } catch (NullPointerException e) {
-                                    Log.i(LOG_TAG, "value was null");
-                                }
-                            }
-                            mapToSet.put(tagToSet, newGeometryFeature);
                         }
                     } else if (geometryType.equals("none")) {
                         Double x = geometry.getDouble("x");

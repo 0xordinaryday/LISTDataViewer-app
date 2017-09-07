@@ -19,7 +19,6 @@ public class ParametersHelper {
         ArrayList<LayerType> layers = new ArrayList<>();
         layers.add(new LayerType("CadastreAndAdministrative", "Local Government Areas", "rings", "4", "NAME", "GAZ_DATE"));
         layers.add(new LayerType("CadastreAndAdministrative", "Heritage Register", "none", "0", "NAME", "ADDRESS"));
-        layers.add(new LayerType("TopographyAndRelief", "10m Contours", "paths", "12", "ELEVATION", "OBJECTID"));
         layers.add(new LayerType("CadastreAndAdministrative", "Locality Boundaries", "rings", "7", "NAME", "POSTCODE"));
         layers.add(new LayerType("CadastreAndAdministrative", "Urban Localities", "rings", "65", "NAME", "POSTCODE"));
         layers.add(new LayerType("CadastreParcels", "Cadastral Boundaries", "rings", "0", "PROP_ADD", "VOLUME"));
@@ -38,6 +37,12 @@ public class ParametersHelper {
         layers.add(new LayerType("Infrastructure", "TasWater Water Main", "paths", "4", "DIAMETER", "MATERIAL"));
         layers.add(new LayerType("Infrastructure", "TasWater Sewer Main", "paths", "5", "DIAMETER", "MATERIAL"));
         layers.add(new LayerType("TopographyAndRelief", "Survey Control", "none", "1", "EASTING", "NORTHING", "HEIGHT"));
+        layers.add(new LayerType("TopographyAndRelief", "5m Contours", "paths", "13", "ELEVATION", "CONTOUR_TY"));
+        layers.add(new LayerType("TopographyAndRelief", "10m Contours", "paths", "12", "ELEVATION", "CONTOUR_TY"));
+        layers.add(new LayerType("TopographyAndRelief", "Transmission Lines", "paths", "25", "NAME", "VOLTAGE"));
+        layers.add(new LayerType("PlanningOnline", "Tasmanian Planning Scheme Overlay", "rings", "3", "SCHEMECODE", "PLANSCHEME", "COMMENTS"));
+        layers.add(new LayerType("PlanningOnline", "Tasmanian Planning Zones", "rings", "4", "SCHEMECODE", "PLANSCHEME", "COMMENTS"));
+        layers.add(new LayerType("PlanningOnline", "Tasmanian Planning Reference", "rings", "7", "LINK", "DESCRIPTION"));
         return layers;
     }
 
@@ -62,10 +67,8 @@ public class ParametersHelper {
         categories.add("PlacenamePoints");
         categories.add("Planning");
         categories.add("PlanningOnline");
-        categories.add("RasterMisc");
         categories.add("SearchService");
         categories.add("TopographyAndRelief");
-        categories.add("WealthFromWater");
         return categories;
     }
 }

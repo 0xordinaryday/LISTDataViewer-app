@@ -18,6 +18,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
@@ -69,6 +70,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private String finalRequestString;
     private String PARAM1;
     private String PARAM2;
+    private String PARAM3;
     LayerType selectedType = null;
     private boolean canMakeServerRequest = true;
     private ProgressBar progressBar;
@@ -211,6 +213,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         PARAM1 = type.getParam1();
         PARAM2 = type.getParam2();
+        PARAM3 = type.getParam3();
+
+        String param3String = "";
+
+        if (PARAM3 != null) {
+            param3String = separator + PARAM3;
+        }
 
         return LIST_REQUEST_URL_PART1 +
                 type.getClassification() +
@@ -220,6 +229,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 PARAM1 +
                 separator +
                 PARAM2 +
+                param3String +
                 LIST_REQUEST_URL_PART5;
     }
 
@@ -265,7 +275,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     @Override
     public boolean onMarkerClick(Marker marker) {
-        for (Marker eachMarker: markers) {
+        for (Marker eachMarker : markers) {
             eachMarker.setIcon(BitmapDescriptorFactory.defaultMarker());
         }
         if (marker.getTag() != null && !marker.getTag().equals("Added location")) {
@@ -307,12 +317,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 return;
             }
             int collectionCount = testCollection.getGeometryLength();
+            if (collectionCount == 0) {
+                Toast.makeText(getBaseContext(), "No results for this view", Toast.LENGTH_SHORT).show();
+            }
 
             switch (geometryType) {
                 case "rings":
-                    // Log.i(LOG_TAG, Arrays.toString(testCollection.getKeys().toArray()));
                     final ArrayList<Polygon> polyFeatures = new ArrayList<>();
-                    Log.i("Collection count is", String.valueOf(collectionCount));
                     for (int i = 0; i < collectionCount; i++) {
                         /*
 
@@ -341,7 +352,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                 for (Polygon feature : polyFeatures) {
                                     feature.setFillColor(Color.argb(0, 0, 0, 0));
                                 }
-                                polygon1.setFillColor(Color.rgb(255, 250, 205));
+                                polygon1.setFillColor(Color.argb(100, 255, 250, 205));
                                 if (polygon1.getTag() != null) {
                                     callout.setText(polygon1.getTag().toString());
                                 }
@@ -353,28 +364,31 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 case "paths":
                     final ArrayList<Polyline> lineFeatures = new ArrayList<>();
                     for (int i = 0; i < collectionCount; i++) {
-                        // Instantiates a new Polyline object
-                        PolylineOptions polyOptions = new PolylineOptions()
-                                .add(new LatLng(37.35, -122.0),
-                                        new LatLng(37.45, -122.0));
-                        // Get back the mutable Polyline
-                        Polyline polyline = mMap.addPolyline(polyOptions);
-                        final String keyValue = testCollection.getGeometries().get(i).keySet().toArray()[0].toString();
-                        polyline.setPoints(testCollection.getGeometries().get(i).get(keyValue));
-                        polyline.setTag(keyValue);
-                        polyline.setClickable(true);
-                        polyline.setWidth(3);
-                        lineFeatures.add(polyline);
-                        mMap.setOnPolylineClickListener(polyline1 -> {
-                            for (Polyline feature : lineFeatures) {
-                                feature.setWidth(3);
-                            }
-                            polyline1.setWidth(7);
-                            if (polyline1.getTag() != null) {
-                                callout.setText(polyline1.getTag().toString());
-                            }
-                            callout.setVisibility(View.VISIBLE);
-                        });
+                        int numberOfKeys = testCollection.getGeometries().get(i).keySet().size();
+                        for (int j = 0; j < numberOfKeys; j++) {
+                            // Instantiates a new Polyline object
+                            PolylineOptions polyOptions = new PolylineOptions()
+                                    .add(new LatLng(37.35, -122.0),
+                                            new LatLng(37.45, -122.0));
+                            // Get back the mutable Polyline
+                            Polyline polyline = mMap.addPolyline(polyOptions);
+                            final String keyValue = testCollection.getGeometries().get(i).keySet().toArray()[j].toString();
+                            polyline.setPoints(testCollection.getGeometries().get(i).get(keyValue));
+                            polyline.setTag(keyValue);
+                            polyline.setClickable(true);
+                            polyline.setWidth(3);
+                            lineFeatures.add(polyline);
+                            mMap.setOnPolylineClickListener(polyline1 -> {
+                                for (Polyline feature : lineFeatures) {
+                                    feature.setWidth(3);
+                                }
+                                polyline1.setWidth(7);
+                                if (polyline1.getTag() != null) {
+                                    callout.setText(polyline1.getTag().toString());
+                                }
+                                callout.setVisibility(View.VISIBLE);
+                            });
+                        }
                     }
                     break;
                 case "none":
@@ -494,16 +508,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     JSONObject paramAttributes = attributes.getJSONObject("attributes");
                     String param1 = paramAttributes.getString(PARAM1);
                     String param2 = paramAttributes.getString(PARAM2);
-                    String tagToSet;
-                    if (param1.equals("null") && param2.equals("null")) {
-                        tagToSet = ("No" + PARAM1 + " or " + PARAM2);
-                    } else if (param1.equals("null")) {
-                        tagToSet = (PARAM2 + ": " + param2 + "\nNo " + PARAM1);
-                    } else if (param2.equals("null")) {
-                        tagToSet = ("No " + PARAM2 + "\n" + PARAM1 + ": " + param1);
-                    } else {
-                        tagToSet = (PARAM1 + ": " + param1 + "\n" + PARAM2 + ": " + param2);
+                    String param3 = "empty";
+                    if (PARAM3 != null) {
+                        param3 = paramAttributes.getString(PARAM3);
                     }
+                    String tagToSet = setTags(param1, param2, param3);
+
                     HashMap<String, ArrayList<LatLng>> mapToSet = new HashMap<>();
 
                     JSONObject geometry = attributes.getJSONObject("geometry");
@@ -555,6 +565,38 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 Log.e(LOG_TAG, "Problem parsing the JSON results", e);
             }
             return null;
+        }
+    }
+
+    private String setTags(String param1, String param2, String param3) {
+        String param1out;
+        String param2out;
+        String param3out;
+        if (param1.equals("null")) {
+            param1out = "No " + PARAM1;
+        } else {
+            param1out = PARAM1 + ": " + param1;
+        }
+        if (param2.equals("null")) {
+            param2out = "No " + PARAM2;
+        } else {
+            param2out = PARAM2 + ": " + param2;
+        }
+        switch (param3) {
+            case "null":
+                param3out = "No " + PARAM3;
+                break;
+            case "empty":
+                param3out = "";
+                break;
+            default:
+                param3out = PARAM3 + ": " + param3;
+                break;
+        }
+        if (param3out.equals("")) {
+            return param1out + "\n" + param2out;
+        } else {
+            return param1out + "\n" + param2out + "\n" + param3out;
         }
     }
 

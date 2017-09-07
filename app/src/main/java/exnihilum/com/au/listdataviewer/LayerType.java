@@ -13,6 +13,7 @@ public class LayerType {
     private String layerID;
     private String param1;
     private String param2;
+    private String param3;
 
     public LayerType(String classification, String layerName, String geometryType, String layerID, String param1, String param2) {
         this.classification = classification;
@@ -21,30 +22,45 @@ public class LayerType {
         this.layerID = layerID;
         this.param1 = param1;
         this.param2 = param2;
+        this.param3 = null;
     }
 
-    public String getClassification() {
+    public LayerType(String classification, String layerName, String geometryType, String layerID, String param1, String param2, String param3) {
+        this.classification = classification;
+        this.layerName = layerName;
+        this.geometryType = geometryType;
+        this.layerID = layerID;
+        this.param1 = param1;
+        this.param2 = param2;
+        this.param3 = param3;
+    }
+
+    String getClassification() {
         return classification;
     }
 
-    public String getLayerName() {
+    String getLayerName() {
         return layerName;
     }
 
-    public String getGeometryType() {
+    String getGeometryType() {
         return geometryType;
     }
 
-    public String getLayerID() {
+    String getLayerID() {
         return layerID;
     }
 
-    public String getParam1() {
+    String getParam1() {
         return param1;
     }
 
-    public String getParam2() {
+    String getParam2() {
         return param2;
+    }
+
+    String getParam3() {
+        return param3;
     }
 
     @Override

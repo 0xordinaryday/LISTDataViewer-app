@@ -37,6 +37,7 @@ public class ParametersHelper {
         layers.add(new LayerType("Infrastructure", "TasWater Sewer Maintenance Hole", "none", "3", "OBJECTID", "ASSETID"));
         layers.add(new LayerType("Infrastructure", "TasWater Water Main", "paths", "4", "DIAMETER", "MATERIAL"));
         layers.add(new LayerType("Infrastructure", "TasWater Sewer Main", "paths", "5", "DIAMETER", "MATERIAL"));
+        layers.add(new LayerType("TopographyAndRelief", "Survey Control", "none", "1", "EASTING", "NORTHING", "HEIGHT"));
         return layers;
     }
 

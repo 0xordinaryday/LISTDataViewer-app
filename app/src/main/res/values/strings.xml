@@ -9,4 +9,21 @@
         need to grant this permission. You can choose not to, but the app will not display
         your location.</string>
     <string name="go_button">Go</string>
+    <string name="about_button">About</string>
+    <string name="action_settings">Settings</string>
+
+    <!-- about page stuff -->
+    <string name="about_page_description" translatable="false">blah blah</string>
+
+    <string name="contact_us">Contact us</string>
+    <string name="instagram">Follow us on Instagram</string>
+    <string name="facebook">Like us on Facebook</string>
+    <string name="play_store">Rate us on the Play Store</string>
+    <string name="twitter">Follow us on Twitter</string>
+    <string name="website">Visit our website</string>
+    <string name="copy_right">Copyrights © %1$d</string>
+
+    <string name="about_spiel">This is the app, yo.</string>
+    <!-- end about -->
+
 </resources>

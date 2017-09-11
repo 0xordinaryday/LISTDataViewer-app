@@ -29,7 +29,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
     ArrayList<LayerType> layers = ParametersHelper.layerTypes();
     ArrayList<String> categories = ParametersHelper.getCategories();
     ArrayList<String> layerLabels = new ArrayList<>();
-    ArrayAdapter<CharSequence> detailAdapter;
+    ArrayAdapter<String> detailAdapter;
     TextView goButton;
 
     @Override
@@ -40,10 +40,10 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         Spinner spinnerDetail = (Spinner) findViewById(R.id.layers_spinner);
         Spinner spinnerCategory = (Spinner) findViewById(R.id.category_spinner);
         // Create an ArrayAdapter using the string array and a default spinner layout
-        detailAdapter = new ArrayAdapter(this, android.R.layout.simple_spinner_item, layerLabels);
+        detailAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, layerLabels);
 
-        ArrayAdapter<CharSequence> categoryAdapter =
-                new ArrayAdapter(this, android.R.layout.simple_spinner_item, categories);
+        ArrayAdapter<String> categoryAdapter =
+                new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, categories);
         // Specify the layout to use when the list of choices appears
         detailAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         categoryAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);

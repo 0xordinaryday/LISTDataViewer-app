@@ -14,8 +14,10 @@ public class LayerType {
     private String param1;
     private String param2;
     private String param3;
+    private String param4;
 
-    public LayerType(String classification, String layerName, String geometryType, String layerID, String param1, String param2) {
+    public LayerType(String classification, String layerName,
+                     String geometryType, String layerID, String param1, String param2) {
         this.classification = classification;
         this.layerName = layerName;
         this.geometryType = geometryType;
@@ -23,9 +25,11 @@ public class LayerType {
         this.param1 = param1;
         this.param2 = param2;
         this.param3 = null;
+        this.param4 = null;
     }
 
-    public LayerType(String classification, String layerName, String geometryType, String layerID, String param1, String param2, String param3) {
+    public LayerType(String classification, String layerName,
+                     String geometryType, String layerID, String param1, String param2, String param3) {
         this.classification = classification;
         this.layerName = layerName;
         this.geometryType = geometryType;
@@ -33,6 +37,19 @@ public class LayerType {
         this.param1 = param1;
         this.param2 = param2;
         this.param3 = param3;
+        this.param4 = null;
+    }
+
+    public LayerType(String classification, String layerName,
+                     String geometryType, String layerID, String param1, String param2, String param3, String param4) {
+        this.classification = classification;
+        this.layerName = layerName;
+        this.geometryType = geometryType;
+        this.layerID = layerID;
+        this.param1 = param1;
+        this.param2 = param2;
+        this.param3 = param3;
+        this.param4 = param4;
     }
 
     String getClassification() {
@@ -63,6 +80,10 @@ public class LayerType {
         return param3;
     }
 
+    String getParam4() {
+        return param4;
+    }
+
     @Override
     public String toString() {
         return "LayerType{" +
@@ -72,10 +93,12 @@ public class LayerType {
                 ", layerID='" + layerID + '\'' +
                 ", param1='" + param1 + '\'' +
                 ", param2='" + param2 + '\'' +
+                ", param2='" + param3 + '\'' +
+                ", param2='" + param4 + '\'' +
                 '}';
     }
 
-    public boolean containsName(String checkName) {
+    boolean containsName(String checkName) {
         return this.layerName.equals(checkName);
     }
 }

@@ -71,6 +71,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private String PARAM1;
     private String PARAM2;
     private String PARAM3;
+    private String PARAM4;
     LayerType selectedType = null;
     private boolean canMakeServerRequest = true;
     private ProgressBar progressBar;
@@ -214,11 +215,16 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         PARAM1 = type.getParam1();
         PARAM2 = type.getParam2();
         PARAM3 = type.getParam3();
+        PARAM4 = type.getParam4();
 
         String param3String = "";
+        String param4String = "";
 
         if (PARAM3 != null) {
             param3String = separator + PARAM3;
+        }
+        if (PARAM4 != null) {
+            param4String = separator + PARAM4;
         }
 
         return LIST_REQUEST_URL_PART1 +
@@ -230,6 +236,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 separator +
                 PARAM2 +
                 param3String +
+                param4String +
                 LIST_REQUEST_URL_PART5;
     }
 
@@ -509,10 +516,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     String param1 = paramAttributes.getString(PARAM1);
                     String param2 = paramAttributes.getString(PARAM2);
                     String param3 = "empty";
+                    String param4 = "empty";
                     if (PARAM3 != null) {
                         param3 = paramAttributes.getString(PARAM3);
                     }
-                    String tagToSet = setTags(param1, param2, param3);
+                    if (PARAM4 != null) {
+                        param4 = paramAttributes.getString(PARAM4);
+                    }
+                    String tagToSet = setTags(param1, param2, param3, param4);
 
                     HashMap<String, ArrayList<LatLng>> mapToSet = new HashMap<>();
 
@@ -568,10 +579,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
     }
 
-    private String setTags(String param1, String param2, String param3) {
+    private String setTags(String param1, String param2, String param3, String param4) {
         String param1out;
         String param2out;
         String param3out;
+        String param4out;
         if (param1.equals("null")) {
             param1out = "No " + PARAM1;
         } else {
@@ -593,10 +605,23 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 param3out = PARAM3 + ": " + param3;
                 break;
         }
+        switch (param4) {
+            case "null":
+                param4out = "No " + PARAM4;
+                break;
+            case "empty":
+                param4out = "";
+                break;
+            default:
+                param4out = PARAM4 + ": " + param4;
+                break;
+        }
         if (param3out.equals("")) {
             return param1out + "\n" + param2out;
-        } else {
+        } else if (param4out.equals("")) {
             return param1out + "\n" + param2out + "\n" + param3out;
+        } else {
+            return param1out + "\n" + param2out + "\n" + param3out + "\n" + param4out;
         }
     }
 

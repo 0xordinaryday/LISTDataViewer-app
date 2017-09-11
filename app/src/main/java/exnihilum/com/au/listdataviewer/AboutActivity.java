@@ -4,8 +4,10 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
+import android.text.method.LinkMovementMethod;
 import android.view.View;
 import android.widget.LinearLayout;
+import android.widget.TextView;
 
 /**
  * Created by David on 15/05/2017.
@@ -22,6 +24,9 @@ public class AboutActivity extends AppCompatActivity {
         // find all the views
         LinearLayout emailLayout = (LinearLayout) findViewById(R.id.email_view);
         LinearLayout websiteLayout = (LinearLayout) findViewById(R.id.website_view);
+
+        TextView aboutText = (TextView) findViewById(R.id.description);
+        aboutText.setMovementMethod(LinkMovementMethod.getInstance());
 
         // global onclick listener
         // define 'global' Onclick listener for all views

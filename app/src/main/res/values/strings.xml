@@ -23,7 +23,22 @@
     <string name="website">Visit our website</string>
     <string name="copy_right">Copyrights © %1$d</string>
 
-    <string name="about_spiel">This is the app, yo.</string>
+    <string name="about_spiel">This app displays data from The LIST (Land Information System Tasmania),
+        see <a href="https://www.thelist.tas.gov.au/app/content/home">here</a>. Specifically, the app
+    displays data from the public ArcGIS REST Service which can be found
+        <a href="http://services.thelist.tas.gov.au/arcgis/rest/services">here</a>. Data provided via
+        The LIST is subject to terms and conditions set out
+        <a href="http://listdata.thelist.tas.gov.au/public/LISTWebServicesTermsConditions.pdf">here</a>.
+        Note this link leads to a PDF file of the terms and conditions.\n\n
+
+        LISTData viewer is not created, supported or endorsed by The LIST, the Department of Primary
+        Industries, Parks, Water and Environment, or the State Government. It has been
+        developed by ex nihilum as a freely available mobile viewer for publicly accessible data
+        from The LIST. Note that The LIST data is generally subject to Creative Commons 3 (or attribution)
+        licencing. \n\n
+
+        Queries regarding LISTData viewer can be directed to the creator via the link below.
+    </string>
     <!-- end about -->
 
 </resources>

@@ -26,6 +26,7 @@ import Utilities.ParametersHelper;
 public class MainActivity extends AppCompatActivity implements AdapterView.OnItemSelectedListener {
 
     private final static String LOG_TAG = "debug_tag_main";
+    private boolean userIsInteracting = false;
     ArrayList<LayerType> layers = ParametersHelper.layerTypes();
     ArrayList<String> categories = ParametersHelper.getCategories();
     ArrayList<String> layerLabels = new ArrayList<>();
@@ -100,7 +101,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
             detailAdapter.notifyDataSetChanged();
         } else if (spinner.getId() == R.id.layers_spinner) {
             goButton.setAlpha(1);
-        } else if (spinner.getId() == R.id.geology_spinner) {
+        } else if (spinner.getId() == R.id.geology_spinner && userIsInteracting) {
             String item = (String) parent.getItemAtPosition(pos);
             Intent intent = new Intent(getApplicationContext(), MapsActivity.class);
             intent.putExtra("layerName", item);
@@ -117,6 +118,12 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.actionbar, menu);
         return true;
+    }
+
+    @Override
+    public void onUserInteraction() {
+        super.onUserInteraction();
+        userIsInteracting = true;
     }
 
     @Override

@@ -1,5 +1,6 @@
 package exnihilum.com.au.listdataviewer;
 
+import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
@@ -38,24 +39,34 @@ import com.google.android.gms.maps.model.PolygonOptions;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.maps.android.SphericalUtil;
+import com.google.maps.android.data.kml.KmlLayer;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.xmlpull.v1.XmlPullParserException;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLConnection;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.HashMap;
 
 import Utilities.ParametersHelper;
 
+import static android.os.Environment.getExternalStorageDirectory;
 import static exnihilum.com.au.listdataviewer.R.id.map;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, GoogleMap.OnMarkerClickListener {
@@ -64,6 +75,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
      * Tag for the log messages
      */
     public static final String LOG_TAG = MapsActivity.class.getSimpleName();
+    private boolean isGeologyRequest = false;
     private GoogleMap mMap;
     private ArrayList<LayerType> layers = ParametersHelper.layerTypes();
     private String geometryType;
@@ -78,6 +90,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private LatLng initialPosition;
     private final int ZOOM_LEVEL = 17;
     private TextView callout;
+
+    private String layerName;
 
     // location stuff
     private LocationCallback mLocationCallback;
@@ -101,6 +115,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         callout = (TextView) findViewById(R.id.text_callout);
         callout.setVisibility(View.INVISIBLE);
 
+        verifyStoragePermissions(this);
+
         // get initial position from shared preferences
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         String latString = prefs.getString("lat", "-41.436033");
@@ -118,13 +134,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         progressBar = (ProgressBar) findViewById(R.id.indeterminateBar);
 
         Intent createIntent = getIntent();
-        String layerName = createIntent.getStringExtra("layerName");
+        layerName = createIntent.getStringExtra("layerName");
         // see if it was a geology layer
         ArrayList<String> geologyLayers = ParametersHelper.getGeologyLayers();
         if (geologyLayers.contains(layerName)) {
-            String url = makeGeologyString(layerName, generateEnvelope());
-            Log.i(LOG_TAG, url);
-            return; // for now
+            String geologyString = makeGeologyString(layerName, generateEnvelope());
+            // Log.i(LOG_TAG, geologyString);
+            isGeologyRequest = true;
+            finalRequestString = geologyString;
         } else {
             for (LayerType type : layers) {
                 if (type.containsName(layerName)) {
@@ -133,9 +150,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
         }
 
-        finalRequestString = generateString(selectedType, envelopeArray);
-        Log.i(LOG_TAG, finalRequestString);
-        geometryType = selectedType.getGeometryType(); // rings, paths or none
+        if (!isGeologyRequest) {
+            finalRequestString = generateString(selectedType, envelopeArray);
+            Log.i(LOG_TAG, finalRequestString);
+            geometryType = selectedType.getGeometryType(); // rings, paths or none
+        }
 
         mLocationCallback = new LocationCallback() {
             @Override
@@ -160,10 +179,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         progressBar.setVisibility(View.VISIBLE);
                         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(currentPosition, ZOOM_LEVEL));
                         mMap.clear();
-                        finalRequestString = generateString(selectedType, generateEnvelope());
+                        if (!isGeologyRequest) {
+                            finalRequestString = generateString(selectedType, generateEnvelope());
+                        } else {
+                            finalRequestString = makeGeologyString(layerName, generateEnvelope());
+                        }
                         // make new server request
-                        LISTMapAsyncTask task = new LISTMapAsyncTask();
-                        task.execute();
+                        chooseTaskAndExecute();
                     }
                 }
             }
@@ -182,10 +204,18 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
         }
 
-        // Kick off an {@link AsyncTask} to perform the network request
-        LISTMapAsyncTask task = new LISTMapAsyncTask();
-        task.execute();
+        chooseTaskAndExecute();
         progressBar.setVisibility(View.VISIBLE);
+    }
+
+    private void chooseTaskAndExecute() {
+        if (isGeologyRequest) {
+            DownloadFileFromURL task = new DownloadFileFromURL();
+            task.execute();
+        } else {
+            LISTMapAsyncTask task = new LISTMapAsyncTask();
+            task.execute();
+        }
     }
 
     protected void createLocationRequest() {
@@ -196,7 +226,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private String[] generateEnvelope() {
         // build envelope from initialPosition
-        double delta = 0.002;
+        double delta;
+        if (isGeologyRequest) {
+            delta = 0.05;
+        } else {
+            delta = 0.002;
+        }
         String lowerLeftLat = String.valueOf(initialPosition.latitude - delta);
         String lowerLeftLon = String.valueOf(initialPosition.longitude - delta);
         String upperRightLat = String.valueOf(initialPosition.latitude + delta);
@@ -208,19 +243,18 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         String MRT_WEB_SERVICES_PART1 = "http://www.mrt.tas.gov.au/web-services/ows?service=wfs&version=1.1.0&request=GetFeature&typeName=";
         String MRT_WEB_SERVICES_PART2 = "&styles=default&SRS=EPSG:4326&bbox=";
         String comma = ",";
-        String MRT_WEB_SERVICES_PART3 = "&outputFormat=KML";
+        String MRT_WEB_SERVICES_PART3 = "&outputFormat=KML&X=500&Y=400&query_layers=0";
 
         return MRT_WEB_SERVICES_PART1 + layer + MRT_WEB_SERVICES_PART2 +
-                envelope[1] +
-                comma +
                 envelope[0] +
                 comma +
-                envelope[3] +
+                envelope[1] +
                 comma +
                 envelope[2] +
+                comma +
+                envelope[3] +
                 MRT_WEB_SERVICES_PART3;
     }
-
 
     private String generateString(LayerType type, String[] envelope) {
         String separator = "%2C";
@@ -298,10 +332,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 progressBar.setVisibility(View.VISIBLE);
                 initialPosition = newLocation;
                 mMap.clear();
-                finalRequestString = generateString(selectedType, generateEnvelope());
+                if (!isGeologyRequest) {
+                    finalRequestString = generateString(selectedType, generateEnvelope());
+                } else {
+                    finalRequestString = makeGeologyString(layerName, generateEnvelope());
+                }
                 // make new server request
-                LISTMapAsyncTask task = new LISTMapAsyncTask();
-                task.execute();
+                chooseTaskAndExecute();
             }
         });
     }
@@ -730,6 +767,154 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     // functionality that depends on this permission.
                 }
             }
+        }
+    }
+
+    // task for geology requests
+    /**
+     * Background Async Task to download file
+     * */
+    class DownloadFileFromURL extends AsyncTask<String, String, String> {
+
+        /**
+         * Before starting background thread Show Progress Bar Dialog
+         * */
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+            canMakeServerRequest = false;
+        }
+
+        /**
+         * Returns new URL object from the given string URL.
+         */
+        private URL createUrl(String stringUrl) {
+            URL url;
+            try {
+                url = new URL(stringUrl);
+            } catch (MalformedURLException exception) {
+                Log.e(LOG_TAG, "Error with creating URL", exception);
+                return null;
+            }
+            return url;
+        }
+
+        /**
+         * Downloading file in background thread
+         * */
+        @Override
+        protected String doInBackground(String... urls) {
+            canMakeServerRequest = false;
+            // Create URL object
+            URL url = createUrl(finalRequestString);
+            int count;
+            try {
+                if (url != null) {
+                    URLConnection connection = url.openConnection();
+                    connection.connect();
+
+                    // download the file
+                    InputStream input = new BufferedInputStream(url.openStream(),
+                            8192);
+
+                    String dirPath = getExternalStorageDirectory().toString();
+                    // delete if it exists already
+                    File file = new File(dirPath + "/download.kml");
+                    file.delete();
+
+                    // Output stream
+                    OutputStream output = new FileOutputStream(
+                            getExternalStorageDirectory().toString()
+                                    + "/download.kml");
+
+                    byte data[] = new byte[1024];
+
+                    while ((count = input.read(data)) != -1) {
+                        // writing data to file
+                        output.write(data, 0, count);
+                    }
+
+                    // flushing output
+                    output.flush();
+
+                    // closing streams
+                    output.close();
+                    input.close();
+                }
+
+            } catch (Exception e) {
+                Log.e("Error: ", e.getMessage());
+            }
+
+            return null;
+        }
+
+        /**
+         * Updating progress bar
+         * */
+        protected void onProgressUpdate(String... progress) {
+            // don't need this
+        }
+
+        /**
+         * After completing background task Dismiss the progress dialog
+         * **/
+        @Override
+        protected void onPostExecute(String file_url) {
+            // unzip the file
+            String directoryPath = getExternalStorageDirectory().toString();
+
+            // convert to filestream
+            FileInputStream fileInputStream = null;
+            String filePath = directoryPath + "/download.kml";
+            File file = new File(filePath);
+            try {
+                fileInputStream = new FileInputStream(file);
+            } catch (FileNotFoundException e) {
+                Log.i(LOG_TAG, e.getLocalizedMessage());
+            }
+
+            if (fileInputStream != null) {
+                try {
+                    KmlLayer layer = new KmlLayer(mMap, fileInputStream, getApplicationContext());
+                    layer.addLayerToMap();
+                    // Set a listener for geometry clicked events.
+                    layer.setOnFeatureClickListener(feature ->
+                            Log.i("KmlClick", "Feature clicked: " + feature.getProperties().toString()));
+                } catch (XmlPullParserException | IOException e) {
+                    // do something
+                }
+            }
+            progressBar.setVisibility(View.INVISIBLE);
+            canMakeServerRequest = true;
+        }
+    }
+
+    // Storage Permissions
+    private static final int REQUEST_EXTERNAL_STORAGE = 1;
+    private static String[] PERMISSIONS_STORAGE = {
+            android.Manifest.permission.READ_EXTERNAL_STORAGE,
+            android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+    };
+
+    /**
+     * Checks if the app has permission to write to device storage
+     *
+     * If the app does not has permission then the user will be prompted to grant permissions
+     *
+     * @param activity
+     */
+    public static void verifyStoragePermissions(Activity activity) {
+        // Check if we have write permission
+        int permission = ActivityCompat.checkSelfPermission(activity, android.Manifest.permission.WRITE_EXTERNAL_STORAGE);
+
+        if (permission != PackageManager.PERMISSION_GRANTED) {
+            // We don't have permission so prompt the user
+            ActivityCompat.requestPermissions(
+                    activity,
+                    PERMISSIONS_STORAGE,
+                    REQUEST_EXTERNAL_STORAGE
+            );
         }
     }
 

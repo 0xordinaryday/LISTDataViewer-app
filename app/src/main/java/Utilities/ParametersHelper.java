@@ -117,4 +117,20 @@ public class ParametersHelper {
         categories.add("TopographyAndRelief");
         return categories;
     }
+
+    public static ArrayList<String> getGeologyLayers() {
+        ArrayList<String> geologyLayers = new ArrayList<>();
+        geologyLayers.add("mrtwfs:Boreholes");
+        geologyLayers.add("mrtwfs:LicenceCategory1");
+        geologyLayers.add("mrtwfs:LicenceCategory2");
+        geologyLayers.add("mrtwfs:LicenceCategory3");
+        geologyLayers.add("mrtwfs:LicenceCategory4");
+        geologyLayers.add("mrtwfs:LicenceCategory5");
+        geologyLayers.add("mrtwfs:LicenceCategory6");
+        geologyLayers.add("mrtwfs:Leases");
+        geologyLayers.add("mrtwfs:LandSlidePoly");
+        geologyLayers.add("mrtwfs:ProclaimedAreasPoly");
+        geologyLayers.add("mrtwfs:MineralOccurences");
+        return geologyLayers;
+    }
 }

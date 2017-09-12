@@ -39,19 +39,26 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
 
         Spinner spinnerDetail = (Spinner) findViewById(R.id.layers_spinner);
         Spinner spinnerCategory = (Spinner) findViewById(R.id.category_spinner);
-        // Create an ArrayAdapter using the string array and a default spinner layout
+        Spinner geologySpinner = (Spinner) findViewById(R.id.geology_spinner);
+        // Create ArrayAdapters using the string array and a default spinner layout
         detailAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, layerLabels);
-
         ArrayAdapter<String> categoryAdapter =
                 new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, categories);
+        ArrayAdapter<String> geologyAdapter =
+                new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, ParametersHelper.getGeologyLayers());
+
         // Specify the layout to use when the list of choices appears
         detailAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         categoryAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        geologyAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+
         // Apply the adapter to the spinner
         spinnerDetail.setAdapter(detailAdapter);
         spinnerCategory.setAdapter(categoryAdapter);
         spinnerDetail.setOnItemSelectedListener(this);
         spinnerCategory.setOnItemSelectedListener(this);
+        geologySpinner.setAdapter(geologyAdapter);
+        geologySpinner.setOnItemSelectedListener(this);
 
         // set initial values for detail
         String category = spinnerCategory.getSelectedItem().toString();
@@ -91,8 +98,13 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
                 }
             }
             detailAdapter.notifyDataSetChanged();
-        } else {
+        } else if (spinner.getId() == R.id.layers_spinner) {
             goButton.setAlpha(1);
+        } else if (spinner.getId() == R.id.geology_spinner) {
+            String item = (String) parent.getItemAtPosition(pos);
+            Intent intent = new Intent(getApplicationContext(), MapsActivity.class);
+            intent.putExtra("layerName", item);
+            startActivity(intent);
         }
     }
 

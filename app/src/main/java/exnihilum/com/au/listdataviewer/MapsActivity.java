@@ -119,9 +119,17 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         Intent createIntent = getIntent();
         String layerName = createIntent.getStringExtra("layerName");
-        for (LayerType type : layers) {
-            if (type.containsName(layerName)) {
-                selectedType = type;
+        // see if it was a geology layer
+        ArrayList<String> geologyLayers = ParametersHelper.getGeologyLayers();
+        if (geologyLayers.contains(layerName)) {
+            String url = makeGeologyString(layerName, generateEnvelope());
+            Log.i(LOG_TAG, url);
+            return; // for now
+        } else {
+            for (LayerType type : layers) {
+                if (type.containsName(layerName)) {
+                    selectedType = type;
+                }
             }
         }
 
@@ -195,6 +203,24 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         String upperRightLon = String.valueOf(initialPosition.longitude + delta);
         return new String[]{lowerLeftLat, lowerLeftLon, upperRightLat, upperRightLon};
     }
+
+    private String makeGeologyString(String layer, String[] envelope) {
+        String MRT_WEB_SERVICES_PART1 = "http://www.mrt.tas.gov.au/web-services/ows?service=wfs&version=1.1.0&request=GetFeature&typeName=";
+        String MRT_WEB_SERVICES_PART2 = "&styles=default&SRS=EPSG:4326&bbox=";
+        String comma = ",";
+        String MRT_WEB_SERVICES_PART3 = "&outputFormat=KML";
+
+        return MRT_WEB_SERVICES_PART1 + layer + MRT_WEB_SERVICES_PART2 +
+                envelope[1] +
+                comma +
+                envelope[0] +
+                comma +
+                envelope[3] +
+                comma +
+                envelope[2] +
+                MRT_WEB_SERVICES_PART3;
+    }
+
 
     private String generateString(LayerType type, String[] envelope) {
         String separator = "%2C";

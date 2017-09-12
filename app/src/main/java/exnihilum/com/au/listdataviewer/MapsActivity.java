@@ -39,6 +39,9 @@ import com.google.android.gms.maps.model.PolygonOptions;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.maps.android.SphericalUtil;
+import com.google.maps.android.data.Feature;
+import com.google.maps.android.data.Layer;
+import com.google.maps.android.data.kml.KmlContainer;
 import com.google.maps.android.data.kml.KmlLayer;
 
 import org.json.JSONArray;
@@ -878,9 +881,29 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 try {
                     KmlLayer layer = new KmlLayer(mMap, fileInputStream, getApplicationContext());
                     layer.addLayerToMap();
+                    // test
+                    KmlContainer topLevel = layer.getContainers().iterator().next();
+                    KmlContainer secondLevel = topLevel.getContainers().iterator().next();
+                    Log.i("Property value", secondLevel.getProperty("name"));
+                    if (secondLevel.hasContainers()) {
+                        for (KmlContainer container:secondLevel.getContainers()) {
+                            Log.i(container.toString(), String.valueOf(container.hasProperties()));
+                        }
+                    }
+                    // end test
                     // Set a listener for geometry clicked events.
-                    layer.setOnFeatureClickListener(feature ->
-                            Log.i("KmlClick", "Feature clicked: " + feature.getProperties().toString()));
+                    layer.setOnFeatureClickListener(new Layer.OnFeatureClickListener() {
+                        @Override
+                        public void onFeatureClick(Feature feature) {
+                            if (feature == null) {
+                                Log.i("Feature", "is null");
+                            } else if (feature.hasProperties()) {
+                                Log.i("Feature", "has properties");
+                            } else {
+                                Log.i("Feature", "has NO properties");
+                            }
+                        }
+                    });
                 } catch (XmlPullParserException | IOException e) {
                     // do something
                 }

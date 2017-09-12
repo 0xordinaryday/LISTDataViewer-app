@@ -36,5 +36,6 @@ dependencies {
     compile 'com.google.android.gms:play-services-base:11.0.4'
     compile 'com.google.android.gms:play-services-location:11.0.4'
     compile 'com.google.maps.android:android-maps-utils:0.5'
+    compile 'com.github.MKergall:osmbonuspack:6.4'
     testCompile 'junit:junit:4.12'
 }

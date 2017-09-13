@@ -1,8 +1,11 @@
 package exnihilum.com.au.listdataviewer;
 
+import android.util.Log;
+
 import com.google.android.gms.maps.model.LatLng;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 
 /**
@@ -52,6 +55,14 @@ class DataCollection {
 
     int getGeometryLength() {
         return this.geometries.size();
+    }
+
+    void logGeometries() {
+        for (HashMap<String,ArrayList<LatLng>> geometry:this.geometries) {
+            for (String key:geometry.keySet()) {
+                Log.i(key, Arrays.toString(geometry.get(key).toArray()));
+            }
+        }
     }
 
     @Override

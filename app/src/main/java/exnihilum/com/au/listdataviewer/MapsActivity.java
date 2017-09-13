@@ -372,7 +372,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         @Override
         protected void onPostExecute(DataCollection testCollection) {
             if (testCollection == null) {
-                Log.i(LOG_TAG, "collection was null");
                 return;
             }
             int collectionCount = testCollection.getGeometryLength();
@@ -380,18 +379,16 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 Toast.makeText(getBaseContext(), "No results for this view", Toast.LENGTH_SHORT).show();
             }
 
-            // temp
             if (isGeologyRequest) {
-                canMakeServerRequest = true;
-                progressBar.setVisibility(View.INVISIBLE);
-                return;
+                geometryType = "rings";
             }
 
             switch (geometryType) {
-                case "rings":
+                case "rings": // for rings or MRT data
                     final ArrayList<Polygon> polyFeatures = new ArrayList<>();
                     for (int i = 0; i < collectionCount; i++) {
                         int numberOfKeys = testCollection.getGeometries().get(i).keySet().size();
+                        // testCollection.logGeometries(); // debug
                         for (int j = 0; j < numberOfKeys; j++) {
                             // Instantiates a new Polygon object and adds points to define a rectangle
                             PolygonOptions rectOptions = new PolygonOptions()
@@ -403,7 +400,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                             Polygon polygon = mMap.addPolygon(rectOptions);
                             final String keyValue = testCollection.getGeometries().get(i).keySet().toArray()[j].toString();
                             polygon.setPoints(testCollection.getGeometries().get(i).get(keyValue));
-                            if (SphericalUtil.computeSignedArea(polygon.getPoints()) > 0) {
+                            if (SphericalUtil.computeSignedArea(polygon.getPoints()) > 0 && !isGeologyRequest) {
                                 polygon.remove();
                                 continue;
                             }
@@ -466,6 +463,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         mMarker.setTag(keyValue);
                         markers.add(mMarker);
                     }
+                    break;
             }
             canMakeServerRequest = true;
             progressBar.setVisibility(View.INVISIBLE);
@@ -667,55 +665,36 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 String tagToSet = name + "\n" +
                         owner + "\n" +
                         status + "\n" +
-                        "Expires: " + expireDate + "\n" +
-                        details;
-
-                Log.i(LOG_TAG, tagToSet);
-
+                        "Expires: " + expireDate;
 
                 HashMap<String, ArrayList<LatLng>> mapToSet = new HashMap<>();
 
                 JSONObject geometry = features.getJSONObject("geometry");
-                    /*
-                    * We can treat polygons and polylines, aka rings and paths, as equivalent
-                    * because the only real difference is that polygons close by having the same
-                    * end point as they started with. Internally in java and as far as the JSON goes
-                    * they look the same otherwise
-                     */
-
-                if (geometryType.equals("rings") || geometryType.equals("paths")) {
-                    JSONArray geometryArray = geometry.getJSONArray(geometryType);
-                    // If there are results in the features array
-                    if (geometryArray.length() > 0) {
-                        for (int counter = 0; counter < geometryArray.length(); counter++) {
-                            ArrayList<LatLng> newGeometryFeature = new ArrayList<>();
-                            JSONArray workingArray = geometryArray.getJSONArray(counter);
-                            int featureLength = workingArray.length();
-                            for (int j = 0; j < featureLength; j++) {
-                                try {
-                                    double Lon = (workingArray.getJSONArray(j).getDouble(0));
-                                    double Lat = (workingArray.getJSONArray(j).getDouble(1));
-                                    LatLng toAppend = new LatLng(Lat, Lon);
-                                    newGeometryFeature.add(toAppend);
-                                } catch (NullPointerException e) {
-                                    Log.i(LOG_TAG, "value was null");
-                                }
-                            }
-                            if (counter == 0) {
-                                mapToSet.put(tagToSet, newGeometryFeature);
-                            } else {
-                                String holeTag = tagToSet + "_" + String.valueOf(counter);
-                                mapToSet.put(holeTag, newGeometryFeature);
+                JSONArray geometryArray = geometry.getJSONArray("coordinates");
+                // If there are results in the features array
+                if (geometryArray.length() > 0) {
+                    for (int counter = 0; counter < geometryArray.length(); counter++) {
+                        ArrayList<LatLng> newGeometryFeature = new ArrayList<>();
+                        // note extra level of array nesting for MRT data
+                        JSONArray workingArray = geometryArray.getJSONArray(counter).getJSONArray(0);
+                        int featureLength = workingArray.length();
+                        for (int j = 0; j < featureLength; j++) {
+                            try {
+                                double Lon = (workingArray.getJSONArray(j).getDouble(0));
+                                double Lat = (workingArray.getJSONArray(j).getDouble(1));
+                                LatLng toAppend = new LatLng(Lat, Lon);
+                                newGeometryFeature.add(toAppend);
+                            } catch (NullPointerException e) {
+                                Log.i(LOG_TAG, "value was null");
                             }
                         }
+                        if (counter == 0) {
+                            mapToSet.put(tagToSet, newGeometryFeature);
+                        } else {
+                            String holeTag = tagToSet + "_" + String.valueOf(counter);
+                            mapToSet.put(holeTag, newGeometryFeature);
+                        }
                     }
-                } else if (geometryType.equals("none")) {
-                    Double x = geometry.getDouble("x");
-                    Double y = geometry.getDouble("y");
-                    ArrayList<LatLng> newGeometryFeature = new ArrayList<>();
-                    LatLng toAppend = new LatLng(y, x);
-                    newGeometryFeature.add(toAppend);
-                    mapToSet.put(tagToSet, newGeometryFeature);
                 }
                 dataCollection.addMapToGeometry(mapToSet);
             }

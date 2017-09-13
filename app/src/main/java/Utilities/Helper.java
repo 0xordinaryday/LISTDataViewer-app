@@ -1,13 +1,24 @@
 package Utilities;
 
+import android.util.Log;
+
 import com.google.android.gms.maps.model.LatLng;
+
+import org.jdom2.Document;
+import org.jdom2.Element;
+import org.jdom2.input.SAXBuilder;
+import org.jdom2.output.XMLOutputter;
 
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -100,6 +111,48 @@ public class Helper {
         }
     }
 
-
+    public static void reformatKMLFile(File file) {
+        try {
+            SAXBuilder builder = new SAXBuilder();
+            if (file.exists()) {
+                Document document = builder.build(file);
+                Element root = document.getRootElement();
+                Log.i("ROOT attr name", Arrays.toString(root.getChildren().toArray()));
+                Element firstTag = root.getChild("Document");
+                Log.i("firstTag", root.getChild("Document").toString());
+                //firstTag.getAttribute("tag").setValue("file");
+                List rootdata = firstTag.getChildren();
+                System.out.println(rootdata);
+                for(Iterator<Element> i = rootdata.iterator(); i.hasNext(); ) {
+                    Element rootitem =i.next();
+                    if(rootitem.getName() =="Placemark"){
+                        System.out.println(rootitem.getChildren("ExtendedData"));
+                        List listdata = rootitem.getChild("ExtendedData").getChild("SchemaData").getChildren();
+                        for(Iterator<Element> j = listdata.iterator(); j.hasNext(); ) {
+                            Element item =j.next();
+                            System.out.println(item);
+                            String gidval = item.getText();
+                            Element gid = new Element("value").setText(gidval);
+                            item.setText("");
+                            item.addContent(gid);
+                            System.out.println("test");
+                        }
+                    }
+                }
+                String des = new XMLOutputter().outputString(document);
+                des = des.replaceAll("SimpleData", "Data");
+                des = des.replaceAll("</SchemaData>", "");
+                des = des.replaceAll("<SchemaData schemaUrl=\"#new_area\">", "");
+                System.out.println("String: " + des.replaceAll("SimpleData", "Data"));
+                FileWriter fileWriter = new FileWriter(file);
+                fileWriter.write(des);
+                fileWriter.close();
+            } else {
+                System.out.println("File does not exist");
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }
 
 }

@@ -340,6 +340,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 } else {
                     finalRequestString = makeGeologyString(layerName, generateEnvelope());
                 }
+                Log.i(LOG_TAG, finalRequestString);
                 // make new server request
                 chooseTaskAndExecute();
             }
@@ -871,6 +872,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             FileInputStream fileInputStream = null;
             String filePath = directoryPath + "/download.kml";
             File file = new File(filePath);
+            // try to reformat file
+            // Helper.reformatKMLFile(file);
+            // hmmmmm.....
             try {
                 fileInputStream = new FileInputStream(file);
             } catch (FileNotFoundException e) {
@@ -882,6 +886,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     KmlLayer layer = new KmlLayer(mMap, fileInputStream, getApplicationContext());
                     layer.addLayerToMap();
                     // test
+
                     KmlContainer topLevel = layer.getContainers().iterator().next();
                     KmlContainer secondLevel = topLevel.getContainers().iterator().next();
                     Log.i("Property value", secondLevel.getProperty("name"));

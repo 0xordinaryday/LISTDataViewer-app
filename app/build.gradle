@@ -37,5 +37,4 @@ dependencies {
     compile 'com.google.android.gms:play-services-location:11.0.4'
     compile 'com.google.maps.android:android-maps-utils:0.5'
     testCompile 'junit:junit:4.12'
-    compile files('libs/jdom-2.0.6.jar')
 }

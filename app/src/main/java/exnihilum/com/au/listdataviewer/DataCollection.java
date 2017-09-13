@@ -10,7 +10,7 @@ import java.util.HashMap;
  * // collection of whatever (polygons) provided by API call
  */
 
-public class DataCollection {
+class DataCollection {
 
     private String symbol = "";
     private ArrayList<HashMap<String,ArrayList<LatLng>>> geometries;

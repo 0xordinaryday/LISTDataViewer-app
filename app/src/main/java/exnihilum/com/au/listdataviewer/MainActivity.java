@@ -1,7 +1,10 @@
 package exnihilum.com.au.listdataviewer;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
@@ -130,7 +133,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
             case R.id.action_settings:
-                // User chose the "Settings" item, show the app settings UI...
+                showNavigationConfirmationDialog();
                 return true;
 
             case R.id.action_about:
@@ -142,8 +145,31 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
                 // If we got here, the user's action was not recognized.
                 // Invoke the superclass to handle it.
                 return super.onOptionsItemSelected(item);
-
         }
+    }
+
+    private void showNavigationConfirmationDialog() {
+        // Create an AlertDialog.Builder and set the message, and click listeners
+        // for the positive and negative buttons on the dialog.
+        SharedPreferences.Editor prefEditor =
+                PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).edit();
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setMessage(R.string.use_location_heading);
+        builder.setPositiveButton(R.string.yes, (dialog, id) -> {
+            // User clicked Yes, so use navigation
+            prefEditor.putBoolean("canNavigate", true);
+            prefEditor.apply();
+        });
+        builder.setNegativeButton(R.string.no, (dialog, id) -> {
+            // User clicked No, so don't use navigation
+            prefEditor.putBoolean("canNavigate", false);
+            prefEditor.apply();
+        });
+
+        // Create and show the AlertDialog
+        AlertDialog alertDialog = builder.create();
+        alertDialog.show();
     }
 
 

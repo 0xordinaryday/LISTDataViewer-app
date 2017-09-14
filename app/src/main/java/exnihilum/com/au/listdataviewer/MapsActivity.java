@@ -14,6 +14,8 @@ import android.support.v4.app.FragmentActivity;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
 import android.text.TextUtils;
+import android.text.method.LinkMovementMethod;
+import android.text.util.Linkify;
 import android.util.Log;
 import android.view.View;
 import android.widget.ProgressBar;
@@ -65,6 +67,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
      */
     public static final String LOG_TAG = MapsActivity.class.getSimpleName();
     private boolean isGeologyRequest = false;
+    private boolean isLandslideRequest = false;
+    private boolean isProclaimedRequest = false;
     private boolean canNavigate = true;
     private GoogleMap mMap;
     private ArrayList<LayerType> layers = ParametersHelper.layerTypes();
@@ -103,6 +107,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         setContentView(R.layout.activity_maps);
 
         callout = (TextView) findViewById(R.id.text_callout);
+        callout.setMovementMethod(LinkMovementMethod.getInstance());
         callout.setVisibility(View.INVISIBLE);
 
         // get initial position from shared preferences, and check if navigation allowed
@@ -137,6 +142,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     selectedType = type;
                 }
             }
+        }
+
+        if (layerName.equals("mrtwfs:LandSlidePoly")) {
+            isLandslideRequest = true;
+        } else if (layerName.equals("mrtwfs:ProclaimedAreasPoly")) {
+            isProclaimedRequest = true;
         }
 
         if (!isGeologyRequest) {
@@ -465,6 +476,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     }
                     break;
             }
+            // make links clickable, hopefully
+            // pattern we want to match and turn into a clickable link
+            /*Pattern pattern = Pattern.compile("mrt.tas.gov.au");
+            // prefix our pattern with http://
+            Linkify.addLinks(callout, pattern, "http://");*/
+            callout.setAutoLinkMask(Linkify.WEB_URLS);
+
             canMakeServerRequest = true;
             progressBar.setVisibility(View.INVISIBLE);
         }
@@ -656,16 +674,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
                 // string tags for datacollection
                 JSONObject properties = features.getJSONObject("properties");
-                String name = properties.getString("NAME");
-                String owner = properties.getString("OWNER");
-                String status = properties.getString("STATUS");
-                String expireDate = properties.getString("EXPIREDATE");
-                String details = properties.getString("DETAILS");
-
-                String tagToSet = name + "\n" +
-                        owner + "\n" +
-                        status + "\n" +
-                        "Expires: " + expireDate;
+                String tagToSet = geoTags(properties);
+                Log.i("CHECK STRING", tagToSet);
 
                 HashMap<String, ArrayList<LatLng>> mapToSet = new HashMap<>();
 
@@ -703,6 +713,50 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             Log.e(LOG_TAG, "Problem parsing the JSON results", e);
         }
         return null;
+    }
+
+    private String geoTags(JSONObject json) {
+        // string tags for datacollection
+        String[] stringArray;
+        String[] landslip = {"NAME", "FEATURE_TYPE", "ACTIVITY_STATE", "CLASSIFICATION_MATERIAL_TYPE", "DETAILS"};
+        String[] licence = {"NAME", "OWNER", "STATUS", "EXPIREDATE", "DETAILS"};
+        String[] proclaimed = {"GID", "AREA_CLASSIFICATION", "STATUTORY_RULE"};
+        if (isLandslideRequest) {
+            stringArray = landslip;
+        } else if (isProclaimedRequest) {
+            stringArray = proclaimed;
+        } else {
+            stringArray = licence;
+        }
+
+        try {
+            String strOne;
+            if (isProclaimedRequest) {
+                strOne = String.valueOf(json.getInt(stringArray[0]));
+            } else {
+                strOne = json.getString(stringArray[0]);
+            }
+            String strTwo = json.getString(stringArray[1]);
+            String strThree = json.getString(stringArray[2]);
+            if (!isProclaimedRequest) {
+                String strFour = json.getString(stringArray[3]);
+                String strFive = json.getString(stringArray[4]);
+                String trimFive = strFive.replace(" target=\"_blank\"", "");
+                return  stringArray[0] + ": " + strOne + "\n" +
+                        stringArray[1] + ": " + strTwo + "\n" +
+                        stringArray[2] + ": " + strThree + "\n" +
+                        stringArray[3] + ": " + strFour + "\n" +
+                        stringArray[4] + ": " + trimFive;
+            } else {
+                return  stringArray[0] + ": " + strOne + "\n" +
+                        stringArray[1] + ": " + strTwo + "\n" +
+                        stringArray[2] + ": " + strThree;
+            }
+
+        } catch (JSONException e) {
+            Log.i("JSONException", e.getLocalizedMessage());
+            return "error";
+        }
     }
 
     private String setTags(String param1, String param2, String param3, String param4) {
@@ -771,7 +825,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private void stopLocationUpdates() {
-        mFusedLocationClient.removeLocationUpdates(mLocationCallback);
+        if (mFusedLocationClient != null) {
+            mFusedLocationClient.removeLocationUpdates(mLocationCallback);
+        }
     }
 
     @Override

@@ -52,4 +52,9 @@
         <item name="android:textSize">@dimen/about_group_item_text_size</item>
     </style>
 
+    <style name="ThemeOverlay.MyTheme" parent="ThemeOverlay.AppCompat.Light">
+        <item name="android:colorBackground">@color/colorPrimary</item>
+        <item name="android:textColor">@color/about_item_text_color</item>
+    </style>
+
 </resources>

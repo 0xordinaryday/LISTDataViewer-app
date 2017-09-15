@@ -69,6 +69,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private boolean isGeologyRequest = false;
     private boolean isLandslideRequest = false;
     private boolean isProclaimedRequest = false;
+    private boolean isBoreHoleRequest = false;
+    private boolean isMineralRequest = false;
     private boolean canNavigate = true;
     private GoogleMap mMap;
     private ArrayList<LayerType> layers = ParametersHelper.layerTypes();
@@ -144,10 +146,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
         }
 
-        if (layerName.equals("mrtwfs:LandSlidePoly")) {
-            isLandslideRequest = true;
-        } else if (layerName.equals("mrtwfs:ProclaimedAreasPoly")) {
-            isProclaimedRequest = true;
+        switch (layerName) {
+            case "mrtwfs:LandSlidePoly":
+                isLandslideRequest = true;
+                break;
+            case "mrtwfs:ProclaimedAreasPoly":
+                isProclaimedRequest = true;
+                break;
+            case "mrtwfs:Boreholes":
+                isBoreHoleRequest = true;
+                break;
+            case "mrtwfs:MineralOccurences":
+                isMineralRequest = true;
+                break;
         }
 
         if (!isGeologyRequest) {
@@ -223,9 +234,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         // build envelope from initialPosition
         double delta;
         if (isGeologyRequest) {
-            delta = 0.05;
+            delta = 0.01;
         } else {
-            delta = 0.002;
+            delta = 0.01;
         }
         String lowerLeftLat = String.valueOf(initialPosition.latitude - delta);
         String lowerLeftLon = String.valueOf(initialPosition.longitude - delta);
@@ -345,7 +356,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             eachMarker.setIcon(BitmapDescriptorFactory.defaultMarker());
         }
         if (marker.getTag() != null && !marker.getTag().equals("Added location")) {
-            callout.setText(marker.getTag().toString());
+            String textToSet = marker.getTag().toString();
+            if (textToSet.contains("SALT_FOR_HASHMAP$")) {
+                String trimmedText = textToSet.substring(textToSet.indexOf("$") + 1);
+                callout.setText(trimmedText);
+            } else {
+                callout.setText(textToSet);
+            }
             callout.setVisibility(View.VISIBLE);
             marker.setIcon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE));
         }
@@ -390,8 +407,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 Toast.makeText(getBaseContext(), "No results for this view", Toast.LENGTH_SHORT).show();
             }
 
-            if (isGeologyRequest) {
+            if (isGeologyRequest && !isBoreHoleRequest && !isMineralRequest) {
                 geometryType = "rings";
+            } else if (isBoreHoleRequest || isMineralRequest) {
+                geometryType = "none";
             }
 
             switch (geometryType) {
@@ -425,7 +444,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                 }
                                 polygon1.setFillColor(Color.argb(100, 255, 250, 205));
                                 if (polygon1.getTag() != null) {
-                                    callout.setText(polygon1.getTag().toString());
+                                    String textToSet = polygon1.getTag().toString();
+                                    if (textToSet.contains("SALT_FOR_HASHMAP$")) {
+                                        String trimmedText = textToSet.substring(textToSet.indexOf("$") + 1);
+                                        callout.setText(trimmedText);
+                                    } else {
+                                        callout.setText(textToSet);
+                                    }
                                 }
                                 callout.setVisibility(View.VISIBLE);
                             });
@@ -455,7 +480,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                 }
                                 polyline1.setWidth(7);
                                 if (polyline1.getTag() != null) {
-                                    callout.setText(polyline1.getTag().toString());
+                                    String textToSet = polyline1.getTag().toString();
+                                    if (textToSet.contains("SALT_FOR_HASHMAP$")) {
+                                        String trimmedText = textToSet.substring(textToSet.indexOf("$") + 1);
+                                        callout.setText(trimmedText);
+                                    } else {
+                                        callout.setText(textToSet);
+                                    }
                                 }
                                 callout.setVisibility(View.VISIBLE);
                             });
@@ -466,6 +497,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     markers.clear();
                     for (int i = 0; i < collectionCount; i++) {
                         final String keyValue = testCollection.getGeometries().get(i).keySet().toArray()[0].toString();
+                        Log.i(LOG_TAG, keyValue);
                         // Instantiates a new marker
                         MarkerOptions markerOptions = new MarkerOptions()
                                 .position(testCollection.getGeometries().get(i).get(keyValue).get(0))
@@ -477,12 +509,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     break;
             }
             // make links clickable, hopefully
-            // pattern we want to match and turn into a clickable link
-            /*Pattern pattern = Pattern.compile("mrt.tas.gov.au");
-            // prefix our pattern with http://
-            Linkify.addLinks(callout, pattern, "http://");*/
             callout.setAutoLinkMask(Linkify.WEB_URLS);
-
             canMakeServerRequest = true;
             progressBar.setVisibility(View.INVISIBLE);
         }
@@ -675,36 +702,47 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 // string tags for datacollection
                 JSONObject properties = features.getJSONObject("properties");
                 String tagToSet = geoTags(properties);
-                Log.i("CHECK STRING", tagToSet);
+                // Log.i("CHECK STRING", tagToSet);
 
                 HashMap<String, ArrayList<LatLng>> mapToSet = new HashMap<>();
 
                 JSONObject geometry = features.getJSONObject("geometry");
-                JSONArray geometryArray = geometry.getJSONArray("coordinates");
-                // If there are results in the features array
-                if (geometryArray.length() > 0) {
-                    for (int counter = 0; counter < geometryArray.length(); counter++) {
-                        ArrayList<LatLng> newGeometryFeature = new ArrayList<>();
-                        // note extra level of array nesting for MRT data
-                        JSONArray workingArray = geometryArray.getJSONArray(counter).getJSONArray(0);
-                        int featureLength = workingArray.length();
-                        for (int j = 0; j < featureLength; j++) {
-                            try {
-                                double Lon = (workingArray.getJSONArray(j).getDouble(0));
-                                double Lat = (workingArray.getJSONArray(j).getDouble(1));
-                                LatLng toAppend = new LatLng(Lat, Lon);
-                                newGeometryFeature.add(toAppend);
-                            } catch (NullPointerException e) {
-                                Log.i(LOG_TAG, "value was null");
+
+                if (!isBoreHoleRequest && !isMineralRequest) {
+                    JSONArray geometryArray = geometry.getJSONArray("coordinates");
+                    // If there are results in the features array
+                    if (geometryArray.length() > 0) {
+                        for (int counter = 0; counter < geometryArray.length(); counter++) {
+                            ArrayList<LatLng> newGeometryFeature = new ArrayList<>();
+                            // note extra level of array nesting for MRT data
+                            JSONArray workingArray = geometryArray.getJSONArray(counter).getJSONArray(0);
+                            int featureLength = workingArray.length();
+                            for (int j = 0; j < featureLength; j++) {
+                                try {
+                                    double Lon = (workingArray.getJSONArray(j).getDouble(0));
+                                    double Lat = (workingArray.getJSONArray(j).getDouble(1));
+                                    LatLng toAppend = new LatLng(Lat, Lon);
+                                    newGeometryFeature.add(toAppend);
+                                } catch (NullPointerException e) {
+                                    Log.i(LOG_TAG, "value was null");
+                                }
+                            }
+                            if (counter == 0) {
+                                mapToSet.put(tagToSet, newGeometryFeature);
+                            } else {
+                                String holeTag = String.valueOf(counter) + "SALT_FOR_HASHMAP$" + tagToSet;
+                                mapToSet.put(holeTag, newGeometryFeature);
                             }
                         }
-                        if (counter == 0) {
-                            mapToSet.put(tagToSet, newGeometryFeature);
-                        } else {
-                            String holeTag = tagToSet + "_" + String.valueOf(counter);
-                            mapToSet.put(holeTag, newGeometryFeature);
-                        }
                     }
+                } else {
+                    JSONArray geometryArray = geometry.getJSONArray("coordinates");
+                    Double x = (Double) geometryArray.get(0);
+                    Double y = (Double) geometryArray.get(1);
+                    ArrayList<LatLng> newGeometryFeature = new ArrayList<>();
+                    LatLng toAppend = new LatLng(y, x);
+                    newGeometryFeature.add(toAppend);
+                    mapToSet.put(tagToSet, newGeometryFeature);
                 }
                 dataCollection.addMapToGeometry(mapToSet);
             }
@@ -721,10 +759,17 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         String[] landslip = {"NAME", "FEATURE_TYPE", "ACTIVITY_STATE", "CLASSIFICATION_MATERIAL_TYPE", "DETAILS"};
         String[] licence = {"NAME", "OWNER", "STATUS", "EXPIREDATE", "DETAILS"};
         String[] proclaimed = {"GID", "AREA_CLASSIFICATION", "STATUTORY_RULE"};
+        String[] borehole = {"NAME", "PURPOSE", "OPERATOR", "DRILLDATE", "DETAILS"};
+        String[] minerals = {"DEPOSIT_NAME", "TYPE", "GEOLOGICALUNIT", "COMMODITY", "DETAILS"};
+
         if (isLandslideRequest) {
             stringArray = landslip;
         } else if (isProclaimedRequest) {
             stringArray = proclaimed;
+        } else if (isBoreHoleRequest) {
+            stringArray = borehole;
+        } else if (isMineralRequest) {
+            stringArray = minerals;
         } else {
             stringArray = licence;
         }
@@ -741,14 +786,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             if (!isProclaimedRequest) {
                 String strFour = json.getString(stringArray[3]);
                 String strFive = json.getString(stringArray[4]);
-                String trimFive = strFive.replace(" target=\"_blank\"", "");
-                return  stringArray[0] + ": " + strOne + "\n" +
+                String tempFive = strFive.replace("<a target=\"_blank\" href=\"", "");
+                String trimFive = tempFive.substring(0, tempFive.indexOf("\""));
+                return stringArray[0] + ": " + strOne + "\n" +
                         stringArray[1] + ": " + strTwo + "\n" +
                         stringArray[2] + ": " + strThree + "\n" +
                         stringArray[3] + ": " + strFour + "\n" +
                         stringArray[4] + ": " + trimFive;
             } else {
-                return  stringArray[0] + ": " + strOne + "\n" +
+                return stringArray[0] + ": " + strOne + "\n" +
                         stringArray[1] + ": " + strTwo + "\n" +
                         stringArray[2] + ": " + strThree;
             }

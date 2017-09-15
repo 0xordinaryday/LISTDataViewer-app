@@ -2,6 +2,10 @@ package exnihilum.com.au.listdataviewer;
 
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Color;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffColorFilter;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.v7.app.AlertDialog;
@@ -120,6 +124,15 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.actionbar, menu);
+        for(int i = 0; i < menu.size(); i++){
+            Drawable drawable = menu.getItem(i).getIcon();
+            if(drawable != null) {
+                drawable.mutate();
+                PorterDuffColorFilter porterDuffColorFilter
+                        = new PorterDuffColorFilter(Color.WHITE, PorterDuff.Mode.SRC_ATOP);
+                drawable.setColorFilter(porterDuffColorFilter);
+            }
+        }
         return true;
     }
 

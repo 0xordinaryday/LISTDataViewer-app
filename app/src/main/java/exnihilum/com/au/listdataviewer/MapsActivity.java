@@ -655,7 +655,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                 if (counter == 0) {
                                     mapToSet.put(tagToSet, newGeometryFeature);
                                 } else {
-                                    String holeTag = tagToSet + "_" + String.valueOf(counter);
+                                    String holeTag = String.valueOf(counter) + "SALT_FOR_HASHMAP$" + tagToSet;
                                     mapToSet.put(holeTag, newGeometryFeature);
                                 }
                             }
@@ -864,7 +864,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     protected void onPause() {
         super.onPause();
-        setLastLocation();
         if (mRequestingLocationUpdates) {
             stopLocationUpdates();
         }
@@ -874,6 +873,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         if (mFusedLocationClient != null) {
             mFusedLocationClient.removeLocationUpdates(mLocationCallback);
         }
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        setLastLocation();
     }
 
     @Override

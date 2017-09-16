@@ -1,6 +1,8 @@
 package Utilities;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Set;
 
 import exnihilum.com.au.listdataviewer.LayerType;
 
@@ -118,19 +120,54 @@ public class ParametersHelper {
         return categories;
     }
 
-    public static ArrayList<String> getGeologyLayers() {
-        ArrayList<String> geologyLayers = new ArrayList<>();
-        geologyLayers.add("mrtwfs:Boreholes");
-        geologyLayers.add("mrtwfs:LicenceCategory1");
-        geologyLayers.add("mrtwfs:LicenceCategory2");
-        geologyLayers.add("mrtwfs:LicenceCategory3");
-        geologyLayers.add("mrtwfs:LicenceCategory4");
-        geologyLayers.add("mrtwfs:LicenceCategory5");
-        geologyLayers.add("mrtwfs:LicenceCategory6");
-        geologyLayers.add("mrtwfs:Leases");
-        geologyLayers.add("mrtwfs:LandSlidePoly");
-        geologyLayers.add("mrtwfs:ProclaimedAreasPoly");
-        geologyLayers.add("mrtwfs:MineralOccurences");
-        return geologyLayers;
+    public static HashMap<String, String> makeCategoryMap() {
+        HashMap<String, String> categoryMap = new HashMap<>();
+        // categoryMap.put("ABS Statistical Data", "ABSdata");
+        categoryMap.put("Cadastre And Administrative", "CadastreAndAdministrative");
+        categoryMap.put("Cadastre Parcels", "CadastreParcels");
+        // categoryMap.put("Climate Change", "ClimateChange");
+        categoryMap.put("Common Operating Platform Public", "COPpublic");
+        // categoryMap.put("Education", "Education");
+        categoryMap.put("Emergency Management Public", "EmergencyManagementPublic");
+        // categoryMap.put("Flood Mapping Public", "FloodMappingPublic");
+        categoryMap.put("Geological And Soils - non MRT", "GeologicalAndSoils");
+        // categoryMap.put("Indexes", "Indexes");
+        categoryMap.put("Infrastructure", "Infrastructure");
+        categoryMap.put("Marine And Coastal", "MarineAndCoastal");
+        // categoryMap.put("MAX Biosecurity Public", "MAXBiosecurityPublic");
+        // categoryMap.put("Natural Environment", "NaturalEnvironment");
+        categoryMap.put("Natural Values Atlas Data", "NVAdata");
+        categoryMap.put("Open Data Web Feature Service", "OpenDataWFS");
+        categoryMap.put("Placename Points", "PlacenamePoints");
+        categoryMap.put("Planning", "Planning");
+        categoryMap.put("Planning Online", "PlanningOnline");
+        categoryMap.put("Search Service", "SearchService");
+        categoryMap.put("Topography And Relief", "TopographyAndRelief");
+        return categoryMap;
     }
+
+    public static Set<String> getCategorySet() {
+        return makeCategoryMap().keySet();
+    }
+
+    public static HashMap<String, String> makeGeologyLayerMap() {
+        HashMap<String, String> geologyLayerMap = new HashMap<>();
+        geologyLayerMap.put("Boreholes", "mrtwfs:Boreholes");
+        geologyLayerMap.put("Exploration Licence Category 1", "mrtwfs:LicenceCategory1");
+        geologyLayerMap.put("Exploration Licence Category 2", "mrtwfs:LicenceCategory2");
+        geologyLayerMap.put("Exploration Licence Category 3", "mrtwfs:LicenceCategory3");
+        geologyLayerMap.put("Exploration Licence Category 4", "mrtwfs:LicenceCategory4");
+        geologyLayerMap.put("Exploration Licence Category 5", "mrtwfs:LicenceCategory5");
+        geologyLayerMap.put("Exploration Licence Category 6", "mrtwfs:LicenceCategory6");
+        geologyLayerMap.put("Mine Leases", "mrtwfs:Leases");
+        geologyLayerMap.put("Landslide Zones", "mrtwfs:LandSlidePoly");
+        geologyLayerMap.put("Proclaimed Areas", "mrtwfs:ProclaimedAreasPoly");
+        geologyLayerMap.put("Mineral Occurances", "mrtwfs:MineralOccurences");
+        return geologyLayerMap;
+    }
+
+    public static Set<String> getGeologyLayers() {
+        return makeGeologyLayerMap().keySet();
+    }
+
 }

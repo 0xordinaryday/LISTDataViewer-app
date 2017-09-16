@@ -55,6 +55,7 @@ import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Set;
 
 import Utilities.ParametersHelper;
 
@@ -131,16 +132,17 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         Intent createIntent = getIntent();
         layerName = createIntent.getStringExtra("layerName");
+        String key = createIntent.getStringExtra("key");
         // see if it was a geology layer
-        ArrayList<String> geologyLayers = ParametersHelper.getGeologyLayers();
-        if (geologyLayers.contains(layerName)) {
+        Set<String> geologyLayers = ParametersHelper.getGeologyLayers();
+        if (geologyLayers.contains(key)) {
             String geologyString = makeGeologyString(layerName, generateEnvelope());
             // Log.i(LOG_TAG, geologyString);
             isGeologyRequest = true;
             finalRequestString = geologyString;
         } else {
             for (LayerType type : layers) {
-                if (type.containsName(layerName)) {
+                if (type.isNameEqualTo(layerName)) {
                     selectedType = type;
                 }
             }
@@ -236,7 +238,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         if (isGeologyRequest) {
             delta = 0.01;
         } else {
-            delta = 0.01;
+            delta = 0.005;
         }
         String lowerLeftLat = String.valueOf(initialPosition.latitude - delta);
         String lowerLeftLon = String.valueOf(initialPosition.longitude - delta);

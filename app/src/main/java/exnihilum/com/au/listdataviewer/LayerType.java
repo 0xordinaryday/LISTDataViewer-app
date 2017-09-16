@@ -98,7 +98,7 @@ public class LayerType {
                 '}';
     }
 
-    boolean containsName(String checkName) {
+    boolean isNameEqualTo(String checkName) {
         return this.layerName.equals(checkName);
     }
 }

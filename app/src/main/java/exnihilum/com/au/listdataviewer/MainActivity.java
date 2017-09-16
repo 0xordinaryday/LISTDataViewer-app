@@ -21,39 +21,53 @@ import android.widget.Spinner;
 import android.widget.TextView;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Set;
 
 import Utilities.ParametersHelper;
 
 
 /**
  * Created by david on 28/07/2017.
- *
  */
 
 public class MainActivity extends AppCompatActivity implements AdapterView.OnItemSelectedListener {
 
     private final static String LOG_TAG = "debug_tag_main";
     private boolean userIsInteracting = false;
+    private HashMap<String, String> categoryMap;
     ArrayList<LayerType> layers = ParametersHelper.layerTypes();
-    ArrayList<String> categories = ParametersHelper.getCategories();
+    Set<String> categories = ParametersHelper.getCategorySet();
     ArrayList<String> layerLabels = new ArrayList<>();
     ArrayAdapter<String> detailAdapter;
     TextView goButton;
+    HashMap<String, String> geologyLayerMap;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        // make maps
+        geologyLayerMap = ParametersHelper.makeGeologyLayerMap();
+        categoryMap = ParametersHelper.makeCategoryMap();
+
         Spinner spinnerDetail = (Spinner) findViewById(R.id.layers_spinner);
         Spinner spinnerCategory = (Spinner) findViewById(R.id.category_spinner);
         Spinner geologySpinner = (Spinner) findViewById(R.id.geology_spinner);
         // Create ArrayAdapters using the string array and a default spinner layout
         detailAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, layerLabels);
+        // have to covert set to list for use in array adapter
+        List<String> categoryList = Arrays.asList(categories.toArray(new String[0]));
+        java.util.Collections.sort(categoryList);
         ArrayAdapter<String> categoryAdapter =
-                new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, categories);
+                new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, categoryList);
+        List<String> list = Arrays.asList(ParametersHelper.getGeologyLayers().toArray(new String[0]));
+        java.util.Collections.sort(list);
         ArrayAdapter<String> geologyAdapter =
-                new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, ParametersHelper.getGeologyLayers());
+                new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, list);
 
         // Specify the layout to use when the list of choices appears
         detailAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
@@ -71,7 +85,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         // set initial values for detail
         String category = spinnerCategory.getSelectedItem().toString();
         for (LayerType type : layers) {
-            if (type.getClassification().equals(category)) {
+            if (type.getClassification().equals(categoryMap.get(category))) {
                 layerLabels.add(type.getLayerName());
             }
         }
@@ -80,9 +94,8 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         goButton.setAlpha((float) 0.4);
         goButton.setOnClickListener(view -> {
                     String item = spinnerDetail.getSelectedItem().toString();
-                    Log.i(LOG_TAG, item);
                     for (LayerType type : layers) {
-                        if (type.containsName(item)) {
+                        if (type.isNameEqualTo(item)) {
                             Intent intent = new Intent(getApplicationContext(), MapsActivity.class);
                             intent.putExtra("layerName", type.getLayerName());
                             startActivity(intent);
@@ -101,7 +114,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
             String item = (String) parent.getItemAtPosition(pos);
             layerLabels.clear();
             for (LayerType type : layers) {
-                if (type.getClassification().equals(item)) {
+                if (type.getClassification().equals(categoryMap.get(item))) {
                     layerLabels.add(type.getLayerName());
                 }
             }
@@ -110,8 +123,10 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
             goButton.setAlpha(1);
         } else if (spinner.getId() == R.id.geology_spinner && userIsInteracting) {
             String item = (String) parent.getItemAtPosition(pos);
+            Log.i(item, geologyLayerMap.get(item));
             Intent intent = new Intent(getApplicationContext(), MapsActivity.class);
-            intent.putExtra("layerName", item);
+            intent.putExtra("key", item);
+            intent.putExtra("layerName", geologyLayerMap.get(item));
             startActivity(intent);
         }
     }
@@ -124,9 +139,9 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.actionbar, menu);
-        for(int i = 0; i < menu.size(); i++){
+        for (int i = 0; i < menu.size(); i++) {
             Drawable drawable = menu.getItem(i).getIcon();
-            if(drawable != null) {
+            if (drawable != null) {
                 drawable.mutate();
                 PorterDuffColorFilter porterDuffColorFilter
                         = new PorterDuffColorFilter(Color.WHITE, PorterDuff.Mode.SRC_ATOP);

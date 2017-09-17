@@ -51,7 +51,6 @@ public class ParametersHelper {
         layers.add(new LayerType("EmergencyManagementPublic", "TASVEG 3.0 Fire Attributes", "rings", "3", "FIRESENS", "FLAMMAB", "VEGCODE_D"));
         layers.add(new LayerType("EmergencyManagementPublic", "Ambulance Stations", "none", "4", "NAME", "MAJOR_CATEGORY", "PROP_ADD", "MUNICIPALITY"));
         layers.add(new LayerType("EmergencyManagementPublic", "Police Station", "none", "5", "NAME", "COM_TYPE1", "COM_TYPE2"));
-        // layers.add(new LayerType("EmergencyManagementPublic", "Fire Station", "none", "6", "ADDRESS", "STATION_TY", "BRIGADE"));
         layers.add(new LayerType("EmergencyManagementPublic", "State Emergency Service Offices", "none", "7", "NAME", "COM_TYPE1", "COMFAC_ID"));
         layers.add(new LayerType("EmergencyManagementPublic", "Ambulance Tasmania Station Primary Response Area", "rings", "8", "REGION", "AT_STATION", "LOCATION"));
         layers.add(new LayerType("GeologicalAndSoils", "Geological Lines 25K", "paths", "13", "TYPE", "CLASS"));
@@ -81,8 +80,6 @@ public class ParametersHelper {
         layers.add(new LayerType("Infrastructure", "Community Sports and Recreation Facilities", "none", "8", "NAME", "COM_TYPE1", "COM_TYPE2"));
         layers.add(new LayerType("Infrastructure", "Metro and Tassielink Bus Routes", "paths", "18", "ROUTE_SHORT_NAME", "TRIP_HEADSIGN", "ROUTE_ID", "SERVICE_ID"));
         layers.add(new LayerType("Infrastructure", "Metro Bus Stops", "none", "19", "STOP_NAME", "STOP_DESC", "PARENT_STATION"));
-
-
 
         layers.add(new LayerType("TopographyAndRelief", "Survey Control", "none", "1", "EASTING", "NORTHING", "HEIGHT"));
         layers.add(new LayerType("TopographyAndRelief", "5m Contours", "paths", "13", "ELEVATION", "CONTOUR_TY"));

@@ -51,6 +51,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
+import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -238,7 +239,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         if (isGeologyRequest) {
             delta = 0.01;
         } else {
-            delta = 0.005;
+            delta = 0.003;
         }
         String lowerLeftLat = String.valueOf(initialPosition.latitude - delta);
         String lowerLeftLon = String.valueOf(initialPosition.longitude - delta);
@@ -402,6 +403,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         @Override
         protected void onPostExecute(DataCollection testCollection) {
             if (testCollection == null) {
+                Toast.makeText(getBaseContext(), "There was a problem with the server request",
+                        Toast.LENGTH_SHORT).show();
+                progressBar.setVisibility(View.INVISIBLE);
+                canMakeServerRequest = true;
                 return;
             }
             int collectionCount = testCollection.getGeometryLength();
@@ -432,7 +437,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                             Polygon polygon = mMap.addPolygon(rectOptions);
                             final String keyValue = testCollection.getGeometries().get(i).keySet().toArray()[j].toString();
                             polygon.setPoints(testCollection.getGeometries().get(i).get(keyValue));
-                            if (SphericalUtil.computeSignedArea(polygon.getPoints()) > 0 && !isGeologyRequest) {
+                            if (layerName.equals("Cadastral Parcels") && keyValue.contains("PID: 0")) {
                                 polygon.remove();
                                 continue;
                             }
@@ -444,6 +449,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                 for (Polygon feature : polyFeatures) {
                                     feature.setFillColor(Color.argb(0, 0, 0, 0));
                                 }
+                                Log.i(LOG_TAG, String.valueOf(SphericalUtil.computeSignedArea(polygon1.getPoints())));
                                 polygon1.setFillColor(Color.argb(100, 255, 250, 205));
                                 if (polygon1.getTag() != null) {
                                     String textToSet = polygon1.getTag().toString();
@@ -554,13 +560,23 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 if (responseCode != 200) {
                     // invalid response
                     Log.i(LOG_TAG + " http response code", String.valueOf(responseCode));
+                    Toast.makeText(getApplicationContext(),
+                            "A problem has occurred with the server, please try again later",
+                            Toast.LENGTH_SHORT).show();
                     return jsonResponse;
                 }
                 inputStream = urlConnection.getInputStream();
                 jsonResponse = readFromStream(inputStream);
+            } catch (SocketTimeoutException e) {
+                Log.e(LOG_TAG, e.getLocalizedMessage());
+                Toast.makeText(getApplicationContext(),
+                        "The server timed out, please try again later", Toast.LENGTH_SHORT).show();
+                return jsonResponse;
             } catch (IOException e) {
-                // TODO: Handle the exception
-                Log.e(LOG_TAG, " exception thrown:", e);
+                Log.e(LOG_TAG, e.getLocalizedMessage());
+                Toast.makeText(getApplicationContext(),
+                        "An error occurred, please try again later", Toast.LENGTH_SHORT).show();
+                return jsonResponse;
             } finally {
                 if (urlConnection != null) {
                     urlConnection.disconnect();
@@ -599,14 +615,18 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             if (TextUtils.isEmpty(listMapJSON)) { // checks for null and empty string
                 return null;
             }
-            try {
+            try { // check if there was an error
+                JSONObject baseJsonResponse = new JSONObject(listMapJSON);
+                if (baseJsonResponse.has("error")) {
+                    return null;
+                }
+
                 // setup object to hold data
                 DataCollection dataCollection = new DataCollection();
                 ArrayList<HashMap<String, ArrayList<LatLng>>> geometryToSet =
                         new ArrayList<>();
                 dataCollection.setGeometries(geometryToSet);
 
-                JSONObject baseJsonResponse = new JSONObject(listMapJSON);
                 JSONArray featureArray = baseJsonResponse.getJSONArray("features");
                 int length = featureArray.length();
                 for (int i = 0; i < length; i++) {
@@ -688,14 +708,18 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         if (TextUtils.isEmpty(listMapJSON)) { // checks for null and empty string
             return null;
         }
-        try {
+        try { // see if an error was returned
+            JSONObject baseJsonResponse = new JSONObject(listMapJSON);
+            if (baseJsonResponse.has("error")) {
+                return null;
+            }
+
             // setup object to hold data
             DataCollection dataCollection = new DataCollection();
             ArrayList<HashMap<String, ArrayList<LatLng>>> geometryToSet =
                     new ArrayList<>();
             dataCollection.setGeometries(geometryToSet);
 
-            JSONObject baseJsonResponse = new JSONObject(listMapJSON);
             JSONArray featureArray = baseJsonResponse.getJSONArray("features");
             int length = featureArray.length();
             for (int i = 0; i < length; i++) {

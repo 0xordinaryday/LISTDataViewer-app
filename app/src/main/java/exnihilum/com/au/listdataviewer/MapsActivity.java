@@ -437,7 +437,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                             Polygon polygon = mMap.addPolygon(rectOptions);
                             final String keyValue = testCollection.getGeometries().get(i).keySet().toArray()[j].toString();
                             polygon.setPoints(testCollection.getGeometries().get(i).get(keyValue));
-                            if (layerName.equals("Cadastral Parcels") && keyValue.contains("PID: 0")) {
+                            doPolygonStyling(keyValue, polygon);
+                            if ((layerName.equals("Cadastral Parcels") && keyValue.contains("PID: 0")) ||
+                                    (layerName.equals("TasWater Water Serviced Land")
+                                            && SphericalUtil.computeSignedArea(polygon.getPoints()) > 0)) {
                                 polygon.remove();
                                 continue;
                             }
@@ -447,7 +450,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                             polyFeatures.add(polygon);
                             mMap.setOnPolygonClickListener(polygon1 -> {
                                 for (Polygon feature : polyFeatures) {
-                                    feature.setFillColor(Color.argb(0, 0, 0, 0));
+                                    if (polygon1.getTag() != null) {
+                                        doPolygonStyling(polygon1.getTag().toString(), feature);
+                                    }
                                 }
                                 Log.i(LOG_TAG, String.valueOf(SphericalUtil.computeSignedArea(polygon1.getPoints())));
                                 polygon1.setFillColor(Color.argb(100, 255, 250, 205));
@@ -520,6 +525,20 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             callout.setAutoLinkMask(Linkify.WEB_URLS);
             canMakeServerRequest = true;
             progressBar.setVisibility(View.INVISIBLE);
+        }
+
+        private void doPolygonStyling(String tag, Polygon polygon) {
+            switch (layerName) {
+                case "TasWater Water Serviced Land":
+                    if (tag.contains("Full Service")) {
+                        polygon.setFillColor(Color.argb(100, 0, 191, 214));
+                    } else {
+                        polygon.setFillColor(Color.argb(100, 255, 198, 39));
+                    }
+                    break;
+                default:
+                    polygon.setFillColor(Color.argb(0, 0, 0, 0));
+            }
         }
 
         /**

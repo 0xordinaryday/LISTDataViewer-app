@@ -91,6 +91,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private String layerName;
 
+    // temporary
+    ArrayList<JSONPolyfeature> polyfeatureList;
+
     // location stuff
     private LocationCallback mLocationCallback;
     private boolean mRequestingLocationUpdates = true;
@@ -391,6 +394,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             } catch (IOException e) {
                 // TODO Handle the IOException
             }
+
+            // temporary REMOVE LATER
+            if (!isGeologyRequest && !geometryType.equals("none")) {
+                polyfeatureList = extractPolyFromJson(jsonResponse);
+            }
+
             if (!isGeologyRequest) {
                 return extractFeatureFromJson(jsonResponse);
             } else {
@@ -423,87 +432,68 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             switch (geometryType) {
                 case "rings": // for rings or MRT data
                     final ArrayList<Polygon> polyFeatures = new ArrayList<>();
-                    for (int i = 0; i < collectionCount; i++) {
-                        int numberOfKeys = testCollection.getGeometries().get(i).keySet().size();
-                        // testCollection.logGeometries(); // debug
-                        for (int j = 0; j < numberOfKeys; j++) {
-                            // Instantiates a new Polygon object and adds points to define a rectangle
-                            PolygonOptions rectOptions = new PolygonOptions()
-                                    .add(new LatLng(37.35, -122.0),
-                                            new LatLng(37.45, -122.0),
-                                            new LatLng(37.35, -122.2),
-                                            new LatLng(37.35, -122.0));
-                            // Get back the mutable Polygon
-                            Polygon polygon = mMap.addPolygon(rectOptions);
-                            final String keyValue = testCollection.getGeometries().get(i).keySet().toArray()[j].toString();
-                            polygon.setPoints(testCollection.getGeometries().get(i).get(keyValue));
-                            doPolygonStyling(keyValue, polygon);
-                            if ((layerName.equals("Cadastral Parcels") && keyValue.contains("PID: 0")) ||
-                                    (layerName.equals("TasWater Water Serviced Land")
-                                            && SphericalUtil.computeSignedArea(polygon.getPoints()) > 0)) {
-                                polygon.remove();
-                                continue;
-                            }
-                            polygon.setTag(keyValue);
-                            polygon.setClickable(true);
-                            polygon.setStrokeWidth(3);
-                            polyFeatures.add(polygon);
-                            mMap.setOnPolygonClickListener(polygon1 -> {
-                                for (Polygon feature : polyFeatures) {
-                                    if (polygon1.getTag() != null) {
-                                        doPolygonStyling(polygon1.getTag().toString(), feature);
-                                    }
-                                }
-                                Log.i(LOG_TAG, String.valueOf(SphericalUtil.computeSignedArea(polygon1.getPoints())));
-                                polygon1.setFillColor(Color.argb(100, 255, 250, 205));
-                                if (polygon1.getTag() != null) {
-                                    String textToSet = polygon1.getTag().toString();
-                                    if (textToSet.contains("SALT_FOR_HASHMAP$")) {
-                                        String trimmedText = textToSet.substring(textToSet.indexOf("$") + 1);
-                                        callout.setText(trimmedText);
-                                    } else {
-                                        callout.setText(textToSet);
-                                    }
-                                }
-                                callout.setVisibility(View.VISIBLE);
-                            });
+                    for (JSONPolyfeature jsonPolygon : polyfeatureList) {
+                        PolygonOptions rectOptions = new PolygonOptions()
+                                .add(new LatLng(37.35, -122.0),
+                                        new LatLng(37.45, -122.0),
+                                        new LatLng(37.35, -122.2),
+                                        new LatLng(37.35, -122.0));
+                        // Get back the mutable Polygon
+                        Polygon polygon = mMap.addPolygon(rectOptions);
+                        final String tag = jsonPolygon.getName();
+                        polygon.setPoints(jsonPolygon.getGeometry());
+                        if (jsonPolygon.hasHoles()) {
+                            polygon.setHoles(jsonPolygon.getHoles());
                         }
+                        doPolygonStyling(tag, polygon);
+                        if ((layerName.equals("Cadastral Parcels") && tag.contains("PID: 0")) ||
+                                (layerName.equals("TasWater Water Serviced Land")
+                                        && SphericalUtil.computeSignedArea(polygon.getPoints()) > 0)) {
+                            polygon.remove();
+                            continue;
+                        }
+                        polygon.setTag(tag);
+                        polygon.setClickable(true);
+                        polygon.setStrokeWidth(3);
+                        polyFeatures.add(polygon);
+                        mMap.setOnPolygonClickListener(polygon1 -> {
+                            for (Polygon feature : polyFeatures) {
+                                if (polygon1.getTag() != null) {
+                                    doPolygonStyling(polygon1.getTag().toString(), feature);
+                                }
+                            }
+                            polygon1.setFillColor(Color.argb(100, 255, 250, 205));
+                            if (polygon1.getTag() != null) {
+                                callout.setText(polygon1.getTag().toString());
+                            }
+                            callout.setVisibility(View.VISIBLE);
+                        });
                     }
                     break;
                 case "paths":
                     final ArrayList<Polyline> lineFeatures = new ArrayList<>();
-                    for (int i = 0; i < collectionCount; i++) {
-                        int numberOfKeys = testCollection.getGeometries().get(i).keySet().size();
-                        for (int j = 0; j < numberOfKeys; j++) {
-                            // Instantiates a new Polyline object
-                            PolylineOptions polyOptions = new PolylineOptions()
-                                    .add(new LatLng(37.35, -122.0),
-                                            new LatLng(37.45, -122.0));
-                            // Get back the mutable Polyline
-                            Polyline polyline = mMap.addPolyline(polyOptions);
-                            final String keyValue = testCollection.getGeometries().get(i).keySet().toArray()[j].toString();
-                            polyline.setPoints(testCollection.getGeometries().get(i).get(keyValue));
-                            polyline.setTag(keyValue);
-                            polyline.setClickable(true);
-                            polyline.setWidth(3);
-                            lineFeatures.add(polyline);
-                            mMap.setOnPolylineClickListener(polyline1 -> {
-                                for (Polyline feature : lineFeatures) {
-                                    feature.setWidth(3);
-                                }
-                                polyline1.setWidth(7);
-                                if (polyline1.getTag() != null) {
-                                    String textToSet = polyline1.getTag().toString();
-                                    if (textToSet.contains("SALT_FOR_HASHMAP$")) {
-                                        String trimmedText = textToSet.substring(textToSet.indexOf("$") + 1);
-                                        callout.setText(trimmedText);
-                                    } else {
-                                        callout.setText(textToSet);
-                                    }
-                                }
-                                callout.setVisibility(View.VISIBLE);
-                            });
-                        }
+                    for (JSONPolyfeature jsonPolyline : polyfeatureList) {
+                        PolylineOptions polyOptions = new PolylineOptions()
+                                .add(new LatLng(37.35, -122.0),
+                                        new LatLng(37.45, -122.0));
+                        // Get back the mutable Polyline
+                        Polyline polyline = mMap.addPolyline(polyOptions);
+                        final String tag = jsonPolyline.getName();
+                        polyline.setPoints(jsonPolyline.getGeometry());
+                        polyline.setTag(tag);
+                        polyline.setClickable(true);
+                        polyline.setWidth(3);
+                        lineFeatures.add(polyline);
+                        mMap.setOnPolylineClickListener(polyline1 -> {
+                            for (Polyline feature : lineFeatures) {
+                                feature.setWidth(3);
+                            }
+                            polyline1.setWidth(7);
+                            if (polyline1.getTag() != null) {
+                                callout.setText(polyline1.getTag().toString());
+                            }
+                            callout.setVisibility(View.VISIBLE);
+                        });
                     }
                     break;
                 case "none":
@@ -652,21 +642,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     JSONObject attributes = featureArray.getJSONObject(i);
 
                     // string tags for datacollection
-                    JSONObject paramAttributes = attributes.getJSONObject("attributes");
-                    String param1 = paramAttributes.getString(PARAM1);
-                    String param2 = paramAttributes.getString(PARAM2);
-                    String param3 = "empty";
-                    String param4 = "empty";
-                    if (PARAM3 != null) {
-                        param3 = paramAttributes.getString(PARAM3);
-                    }
-                    if (PARAM4 != null) {
-                        param4 = paramAttributes.getString(PARAM4);
-                    }
-                    String tagToSet = setTags(param1, param2, param3, param4);
-
+                    String tagToSet = setTags(attributes.getJSONObject("attributes"));
                     HashMap<String, ArrayList<LatLng>> mapToSet = new HashMap<>();
-
                     JSONObject geometry = attributes.getJSONObject("geometry");
                     /*
                     * We can treat polygons and polylines, aka rings and paths, as equivalent
@@ -675,33 +652,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     * they look the same otherwise
                      */
 
-                    if (geometryType.equals("rings") || geometryType.equals("paths")) {
-                        JSONArray geometryArray = geometry.getJSONArray(geometryType);
-                        // If there are results in the features array
-                        if (geometryArray.length() > 0) {
-                            for (int counter = 0; counter < geometryArray.length(); counter++) {
-                                ArrayList<LatLng> newGeometryFeature = new ArrayList<>();
-                                JSONArray workingArray = geometryArray.getJSONArray(counter);
-                                int featureLength = workingArray.length();
-                                for (int j = 0; j < featureLength; j++) {
-                                    try {
-                                        double Lon = (workingArray.getJSONArray(j).getDouble(0));
-                                        double Lat = (workingArray.getJSONArray(j).getDouble(1));
-                                        LatLng toAppend = new LatLng(Lat, Lon);
-                                        newGeometryFeature.add(toAppend);
-                                    } catch (NullPointerException e) {
-                                        Log.i(LOG_TAG, "value was null");
-                                    }
-                                }
-                                if (counter == 0) {
-                                    mapToSet.put(tagToSet, newGeometryFeature);
-                                } else {
-                                    String holeTag = String.valueOf(counter) + "SALT_FOR_HASHMAP$" + tagToSet;
-                                    mapToSet.put(holeTag, newGeometryFeature);
-                                }
-                            }
-                        }
-                    } else if (geometryType.equals("none")) {
+                    if (geometryType.equals("none")) {
                         Double x = geometry.getDouble("x");
                         Double y = geometry.getDouble("y");
                         ArrayList<LatLng> newGeometryFeature = new ArrayList<>();
@@ -717,6 +668,86 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
             return null;
         }
+
+    }
+
+    // new version using JSONPolyfeature object
+    private ArrayList<JSONPolyfeature> extractPolyFromJson(String listMapJSON) {
+        if (TextUtils.isEmpty(listMapJSON)) { // checks for null and empty string
+            return null;
+        }
+        try { // check if there was an error
+            JSONObject baseJsonResponse = new JSONObject(listMapJSON);
+            if (baseJsonResponse.has("error")) {
+                return null;
+            }
+
+            // setup object to hold data
+            ArrayList<JSONPolyfeature> polyList = new ArrayList<>();
+
+            JSONArray featureArray = baseJsonResponse.getJSONArray("features");
+            int length = featureArray.length();
+            for (int i = 0; i < length; i++) {
+                JSONObject attributes = featureArray.getJSONObject(i);
+                // string tag for polygon object
+                String tagToSet = setTags(attributes.getJSONObject("attributes"));
+                JSONObject geometry = attributes.getJSONObject("geometry");
+                JSONArray geometryArray = geometry.getJSONArray(geometryType);
+                // If there are results in the features array
+                if (geometryArray.length() > 0) {
+                    for (int counter = 0; counter < geometryArray.length(); counter++) {
+                        // make a new poly feature - can be polygon or polyline
+                        JSONPolyfeature newPolyFeature = new JSONPolyfeature(null, null);
+                        // make a List<LatLng> for the polygon geometry
+                        ArrayList<LatLng> newGeometryList = new ArrayList<>();
+                        JSONArray workingArray = geometryArray.getJSONArray(counter);
+                        int featureLength = workingArray.length();
+                        for (int j = 0; j < featureLength; j++) {
+                            try {
+                                double Lon = (workingArray.getJSONArray(j).getDouble(0));
+                                double Lat = (workingArray.getJSONArray(j).getDouble(1));
+                                LatLng toAppend = new LatLng(Lat, Lon);
+                                newGeometryList.add(toAppend);
+                            } catch (NullPointerException e) {
+                                Log.i(LOG_TAG, "value was null");
+                            }
+                        }
+                        // set the geometry list to the object
+                        newPolyFeature.setGeometry(newGeometryList);
+                        if (counter == 0) {
+                            // if this is the FIRST object from the array, set the name
+                            newPolyFeature.setName(tagToSet);
+                            polyList.add(newPolyFeature);
+                        } else {
+                            JSONPolyfeature firstFeature = polyList.get(0);
+                            double firstArea = SphericalUtil.computeSignedArea(firstFeature.getGeometry());
+                            double thisArea = SphericalUtil.computeSignedArea(newPolyFeature.getGeometry());
+                            boolean thisSmaller = Math.abs(thisArea) < Math.abs(firstArea);
+                            boolean oppositeSigns = (firstArea > 0 && thisArea < 0) || (firstArea < 0 && thisArea > 0);
+                            if (geometryType.equals("rings") && thisSmaller && oppositeSigns) {
+                                // has holes is NOT applicable to paths/polylines
+                                // has holes - if not not setup previously, do now:
+                                if (!firstFeature.hasHoles()) {
+                                    firstFeature.setHoles(new ArrayList<>());
+                                    firstFeature.setHasHoles(true);
+                                }
+                                // this is a hole, so it doesn't get a name, and it gets added to the
+                                // hole list, not the main list
+                                firstFeature.addHoleToList(newGeometryList);
+                            } else {
+                                // not a hole, but a second/third/nth part to the shape
+                                newPolyFeature.setName(tagToSet);
+                                polyList.add(newPolyFeature);
+                            }
+                        }
+                    }
+                }
+            }
+            return polyList;
+        } catch (JSONException e) {
+            Log.e(LOG_TAG, "Problem parsing the JSON results", e);
+        }
+        return null;
     }
 
     /**
@@ -850,50 +881,65 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
     }
 
-    private String setTags(String param1, String param2, String param3, String param4) {
-        String param1out;
-        String param2out;
-        String param3out;
-        String param4out;
-        if (param1.equals("null")) {
-            param1out = "No " + PARAM1;
-        } else {
-            param1out = PARAM1 + ": " + param1;
+    private String setTags(JSONObject paramAttributes) {
+        try {
+            String param1 = paramAttributes.getString(PARAM1);
+            String param2 = paramAttributes.getString(PARAM2);
+            String param3 = "empty";
+            String param4 = "empty";
+            if (PARAM3 != null) {
+                param3 = paramAttributes.getString(PARAM3);
+            }
+            if (PARAM4 != null) {
+                param4 = paramAttributes.getString(PARAM4);
+            }
+            String param1out;
+            String param2out;
+            String param3out;
+            String param4out;
+            if (param1.equals("null")) {
+                param1out = "No " + PARAM1;
+            } else {
+                param1out = PARAM1 + ": " + param1;
+            }
+            if (param2.equals("null")) {
+                param2out = "No " + PARAM2;
+            } else {
+                param2out = PARAM2 + ": " + param2;
+            }
+            switch (param3) {
+                case "null":
+                    param3out = "No " + PARAM3;
+                    break;
+                case "empty":
+                    param3out = "";
+                    break;
+                default:
+                    param3out = PARAM3 + ": " + param3;
+                    break;
+            }
+            switch (param4) {
+                case "null":
+                    param4out = "No " + PARAM4;
+                    break;
+                case "empty":
+                    param4out = "";
+                    break;
+                default:
+                    param4out = PARAM4 + ": " + param4;
+                    break;
+            }
+            if (param3out.equals("")) {
+                return param1out + "\n" + param2out;
+            } else if (param4out.equals("")) {
+                return param1out + "\n" + param2out + "\n" + param3out;
+            } else {
+                return param1out + "\n" + param2out + "\n" + param3out + "\n" + param4out;
+            }
+        } catch (JSONException e) {
+            Log.e(LOG_TAG, e.getLocalizedMessage());
         }
-        if (param2.equals("null")) {
-            param2out = "No " + PARAM2;
-        } else {
-            param2out = PARAM2 + ": " + param2;
-        }
-        switch (param3) {
-            case "null":
-                param3out = "No " + PARAM3;
-                break;
-            case "empty":
-                param3out = "";
-                break;
-            default:
-                param3out = PARAM3 + ": " + param3;
-                break;
-        }
-        switch (param4) {
-            case "null":
-                param4out = "No " + PARAM4;
-                break;
-            case "empty":
-                param4out = "";
-                break;
-            default:
-                param4out = PARAM4 + ": " + param4;
-                break;
-        }
-        if (param3out.equals("")) {
-            return param1out + "\n" + param2out;
-        } else if (param4out.equals("")) {
-            return param1out + "\n" + param2out + "\n" + param3out;
-        } else {
-            return param1out + "\n" + param2out + "\n" + param3out + "\n" + param4out;
-        }
+        return null;
     }
 
     private void setLastLocation() {

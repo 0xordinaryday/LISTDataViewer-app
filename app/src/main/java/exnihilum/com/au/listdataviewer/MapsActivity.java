@@ -311,6 +311,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         // Set a listener for marker click.
         mMap.setOnMarkerClickListener(this);
 
+        // show search polygon
+        addSearchPolygon();
+
         mMap.setOnCameraMoveListener(() -> callout.setVisibility(View.INVISIBLE));
 
         // set camera move listener
@@ -328,6 +331,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 progressBar.setVisibility(View.VISIBLE);
                 initialPosition = newLocation;
                 mMap.clear();
+                addSearchPolygon();
                 if (!isGeologyRequest) {
                     finalRequestString = generateString(selectedType, generateEnvelope());
                 } else {
@@ -338,6 +342,26 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 chooseTaskAndExecute();
             }
         });
+    }
+
+    private void addSearchPolygon() {
+        String[] points = generateEnvelope();
+        Double lowerLeftLat = Double.valueOf(points[0]);
+        Double lowerLeftLon = Double.valueOf(points[1]);
+        Double upperRightLat = Double.valueOf(points[2]);
+        Double upperRightLon = Double.valueOf(points[3]);
+
+        PolygonOptions rectOptions = new PolygonOptions()
+                .add(new LatLng(lowerLeftLat, lowerLeftLon),
+                        new LatLng(lowerLeftLat, upperRightLon),
+                        new LatLng(upperRightLat, upperRightLon),
+                        new LatLng(upperRightLat, lowerLeftLon),
+                        new LatLng(lowerLeftLat, lowerLeftLon));
+        // Get back the mutable Polygon
+        Polygon polygon = mMap.addPolygon(rectOptions);
+        final String tag = "Search Region";
+        polygon.setStrokeWidth(3);
+        polygon.setStrokeColor(Color.argb(255, 255, 109, 0));
     }
 
     @Override

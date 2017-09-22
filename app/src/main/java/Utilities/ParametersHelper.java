@@ -91,6 +91,18 @@ public class ParametersHelper {
         layers.add(new LayerType("PlanningOnline", "Tasmanian Planning Scheme Overlay", "rings", "3", "SCHEMECODE", "PLANSCHEME", "COMMENTS"));
         layers.add(new LayerType("PlanningOnline", "Tasmanian Planning Zones", "rings", "4", "SCHEMECODE", "PLANSCHEME", "COMMENTS"));
         layers.add(new LayerType("PlanningOnline", "Tasmanian Planning Reference", "rings", "7", "LINK", "DESCRIPTION"));
+
+        layers.add(new LayerType("GeologyRequest", "Exploration Licence Category 1", "rings", null, null, null));
+        layers.add(new LayerType("GeologyRequest", "Exploration Licence Category 2", "rings", null, null, null));
+        layers.add(new LayerType("GeologyRequest", "Exploration Licence Category 3", "rings", null, null, null));
+        layers.add(new LayerType("GeologyRequest", "Exploration Licence Category 4", "rings", null, null, null));
+        layers.add(new LayerType("GeologyRequest", "Exploration Licence Category 5", "rings", null, null, null));
+        layers.add(new LayerType("GeologyRequest", "Exploration Licence Category 6", "rings", null, null, null));
+        layers.add(new LayerType("GeologyRequest", "Mine Leases", "rings", null, null, null));
+        layers.add(new LayerType("GeologyRequest", "Landslide Zones", "rings", null, null, null));
+        layers.add(new LayerType("GeologyRequest", "Proclaimed Areas", "rings", null, null, null));
+        layers.add(new LayerType("GeologyRequest", "Mineral Occurrences", "none", null, null, null));
+        layers.add(new LayerType("GeologyRequest", "Boreholes", "none", null, null, null));
         return layers;
     }
 
@@ -131,6 +143,7 @@ public class ParametersHelper {
         categoryMap.put("Emergency Management Public", "EmergencyManagementPublic");
         // categoryMap.put("Flood Mapping Public", "FloodMappingPublic");
         categoryMap.put("Geological And Soils - non MRT", "GeologicalAndSoils");
+        categoryMap.put("Mineral Resources Tasmania", "GeologyRequest");
         // categoryMap.put("Indexes", "Indexes");
         categoryMap.put("Infrastructure", "Infrastructure");
         categoryMap.put("Marine And Coastal", "MarineAndCoastal");
@@ -162,7 +175,7 @@ public class ParametersHelper {
         geologyLayerMap.put("Mine Leases", "mrtwfs:Leases");
         geologyLayerMap.put("Landslide Zones", "mrtwfs:LandSlidePoly");
         geologyLayerMap.put("Proclaimed Areas", "mrtwfs:ProclaimedAreasPoly");
-        geologyLayerMap.put("Mineral Occurances", "mrtwfs:MineralOccurences");
+        geologyLayerMap.put("Mineral Occurrences", "mrtwfs:MineralOccurences");
         return geologyLayerMap;
     }
 

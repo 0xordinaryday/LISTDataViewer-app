@@ -87,9 +87,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private String layerName;
 
-    // temporary
-    ArrayList<JSONPolyfeature> polyfeatureList;
-
     // location stuff
     private LocationCallback mLocationCallback;
     private boolean mRequestingLocationUpdates = true;
@@ -152,7 +149,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         if (!isGeologyRequest) {
             finalRequestString = generateString(selectedType, envelopeArray);
-            Log.i(LOG_TAG, finalRequestString);
+            // Log.i(LOG_TAG, finalRequestString);
             geometryType = selectedType.getGeometryType(); // rings, paths or none
         } else if (isGeologyRequest && geologyPointRequests.contains(layerName)) {
             geometryType = "none";
@@ -439,7 +436,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     break;
                 case "paths":
                     final ArrayList<Polyline> lineFeatures = new ArrayList<>();
-                    for (JSONPolyfeature jsonPolyline : polyfeatureList) {
+                    for (JSONPolyfeature jsonPolyline : featureList) {
                         PolylineOptions polyOptions = new PolylineOptions()
                                 .add(new LatLng(37.35, -122.0),
                                         new LatLng(37.45, -122.0));
@@ -590,9 +587,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
         try { // check if there was an error
             JSONObject baseJsonResponse = new JSONObject(listMapJSON);
-            if (baseJsonResponse.has("error")) {
-                return null;
-            }
+            if (baseJsonResponse.has("error")) { return null; }
 
             // setup object to hold data
             ArrayList<JSONPolyfeature> featureList = new ArrayList<>();
@@ -602,20 +597,22 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             for (int i = 0; i < length; i++) {
                 JSONObject attributes = featureArray.getJSONObject(i);
                 JSONObject geometry = attributes.getJSONObject("geometry");
-
-
                 // differentiate between MRT and The LIST
-                JSONArray geometryArray;
                 String tagToSet;
+                JSONArray geometryArray;
                 if (!isGeologyRequest) {
                     tagToSet = setTags(attributes.getJSONObject("attributes"));
-                    geometryArray = geometry.getJSONArray(geometryType);
                 } else {
                     tagToSet = geoTags(attributes.getJSONObject("properties"));
-                    geometryArray = geometry.getJSONArray("coordinates");
                 }
 
                 if (geometryType.equals("paths") || geometryType.equals("rings")) {
+                    // differentiate between MRT and The LIST
+                    if (!isGeologyRequest) {
+                        geometryArray = geometry.getJSONArray(geometryType);
+                    } else {
+                        geometryArray = geometry.getJSONArray("coordinates");
+                    }
                     // If there are results in the features array
                     if (geometryArray.length() > 0) {
                         for (int counter = 0; counter < geometryArray.length(); counter++) {
@@ -675,6 +672,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     Double x;
                     Double y;
                     if (isGeologyRequest) {
+                        geometryArray = geometry.getJSONArray("coordinates");
                         x = (Double) geometryArray.get(0);
                         y = (Double) geometryArray.get(1);
                     } else {

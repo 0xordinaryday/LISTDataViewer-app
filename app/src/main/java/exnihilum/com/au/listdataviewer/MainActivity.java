@@ -14,7 +14,6 @@ import android.preference.PreferenceManager;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -60,7 +59,6 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
 
         Spinner spinnerDetail = (Spinner) findViewById(R.id.layers_spinner);
         Spinner spinnerCategory = (Spinner) findViewById(R.id.category_spinner);
-        Spinner geologySpinner = (Spinner) findViewById(R.id.geology_spinner);
         // Create ArrayAdapters using the string array and a default spinner layout
         detailAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, layerLabels);
         // have to covert set to list for use in array adapter
@@ -70,21 +68,16 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
                 new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, categoryList);
         List<String> list = Arrays.asList(ParametersHelper.getGeologyLayers().toArray(new String[0]));
         java.util.Collections.sort(list);
-        ArrayAdapter<String> geologyAdapter =
-                new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, list);
 
         // Specify the layout to use when the list of choices appears
         detailAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         categoryAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        geologyAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
 
         // Apply the adapter to the spinner
         spinnerDetail.setAdapter(detailAdapter);
         spinnerCategory.setAdapter(categoryAdapter);
         spinnerDetail.setOnItemSelectedListener(this);
         spinnerCategory.setOnItemSelectedListener(this);
-        geologySpinner.setAdapter(geologyAdapter);
-        geologySpinner.setOnItemSelectedListener(this);
 
         // set initial values for detail
         String category = spinnerCategory.getSelectedItem().toString();
@@ -97,18 +90,23 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         goButton = (TextView) findViewById(R.id.go);
         goButton.setAlpha((float) 0.4);
         goButton.setOnClickListener(view -> {
-            if (isNetworkAvailable()) {
-                String item = spinnerDetail.getSelectedItem().toString();
-                for (LayerType type : layers) {
-                    if (type.isNameEqualTo(item)) {
-                        Intent intent = new Intent(getApplicationContext(), MapsActivity.class);
-                        intent.putExtra("layerName", type.getLayerName());
-                        startActivity(intent);
+                    if (isNetworkAvailable()) {
+                        String item = spinnerDetail.getSelectedItem().toString();
+                        for (LayerType type : layers) {
+                            if (type.isNameEqualTo(item)) {
+                                Intent intent = new Intent(getApplicationContext(), MapsActivity.class);
+                                if (type.getClassification().equals("GeologyRequest")) {
+                                    intent.putExtra("key", item);
+                                    intent.putExtra("layerName", geologyLayerMap.get(item));
+                                } else {
+                                    intent.putExtra("layerName", type.getLayerName());
+                                }
+                                startActivity(intent);
+                            }
+                        }
+                    } else {
+                        Toast.makeText(this, "Network not available", Toast.LENGTH_SHORT).show();
                     }
-                }
-            } else {
-                Toast.makeText(this, "Network not available", Toast.LENGTH_SHORT).show();
-            }
                 }
         );
 
@@ -129,13 +127,6 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
             detailAdapter.notifyDataSetChanged();
         } else if (spinner.getId() == R.id.layers_spinner) {
             goButton.setAlpha(1);
-        } else if (spinner.getId() == R.id.geology_spinner && userIsInteracting && isNetworkAvailable()) {
-            String item = (String) parent.getItemAtPosition(pos);
-            Log.i(item, geologyLayerMap.get(item));
-            Intent intent = new Intent(getApplicationContext(), MapsActivity.class);
-            intent.putExtra("key", item);
-            intent.putExtra("layerName", geologyLayerMap.get(item));
-            startActivity(intent);
         } else if (!isNetworkAvailable()) {
             Toast.makeText(this, "Network not available", Toast.LENGTH_SHORT).show();
         }
@@ -167,12 +158,6 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
             }
         }
         return true;
-    }
-
-    @Override
-    public void onUserInteraction() {
-        super.onUserInteraction();
-        userIsInteracting = true;
     }
 
     @Override

@@ -9,53 +9,74 @@ import java.util.ArrayList;
  *
  */
 
-public class JSONPolyfeature {
+class JSONPolyfeature {
 
     private String name;
     private boolean hasHoles;
+    private boolean isPoint;
+    private LatLng pointCoords;
     private ArrayList<LatLng> geometry;
     private ArrayList<ArrayList<LatLng>> holes;
 
-    public JSONPolyfeature(String name, ArrayList<LatLng> geometry) {
-        this.geometry = geometry;
-        this.name = name;
+    public JSONPolyfeature() {
+        this.geometry = null;
+        this.name = null;
         this.hasHoles = false;
         this.holes = null;
+        this.isPoint = false;
+        this.pointCoords = null;
     }
 
-    public String getName() {
+    public JSONPolyfeature(String name, LatLng coords) {
+        this.name = name;
+        this.isPoint = true;
+        this.hasHoles = false;
+        this.geometry = null;
+        this.holes = null;
+        this.pointCoords = coords;
+    }
+
+    String getName() {
         return name;
     }
 
-    public void setName(String name) {
+    public LatLng getPointCoords() {
+        return pointCoords;
+    }
+
+    void setPointCoords(LatLng pointCoords) {
+        this.pointCoords = pointCoords;
+    }
+
+    void setName(String name) {
         this.name = name;
     }
 
-    public boolean hasHoles() {
+    boolean hasHoles() {
         return hasHoles;
     }
 
-    public void setHasHoles(boolean hasHoles) {
+    void setHasHoles(boolean hasHoles) {
         this.hasHoles = hasHoles;
     }
 
-    public ArrayList<LatLng> getGeometry() {
+    ArrayList<LatLng> getGeometry() {
         return geometry;
     }
 
-    public void setGeometry(ArrayList<LatLng> geometry) {
+    void setGeometry(ArrayList<LatLng> geometry) {
         this.geometry = geometry;
     }
 
-    public ArrayList<ArrayList<LatLng>> getHoles() {
+    ArrayList<ArrayList<LatLng>> getHoles() {
         return holes;
     }
 
-    public void setHoles(ArrayList<ArrayList<LatLng>> holes) {
+    void setHoles(ArrayList<ArrayList<LatLng>> holes) {
         this.holes = holes;
     }
 
-    public void addHoleToList(ArrayList<LatLng> newHole) {
+    void addHoleToList(ArrayList<LatLng> newHole) {
         this.holes.add(newHole);
     }
 }

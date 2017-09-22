@@ -55,7 +55,7 @@ import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Arrays;
 import java.util.Set;
 
 import Utilities.ParametersHelper;
@@ -69,10 +69,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
      */
     public static final String LOG_TAG = MapsActivity.class.getSimpleName();
     private boolean isGeologyRequest = false;
-    private boolean isLandslideRequest = false;
-    private boolean isProclaimedRequest = false;
-    private boolean isBoreHoleRequest = false;
-    private boolean isMineralRequest = false;
     private boolean canNavigate = true;
     private GoogleMap mMap;
     private ArrayList<LayerType> layers = ParametersHelper.layerTypes();
@@ -141,7 +137,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         Set<String> geologyLayers = ParametersHelper.getGeologyLayers();
         if (geologyLayers.contains(key)) {
             String geologyString = makeGeologyString(layerName, generateEnvelope());
-            // Log.i(LOG_TAG, geologyString);
             isGeologyRequest = true;
             finalRequestString = geologyString;
         } else {
@@ -152,25 +147,17 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
         }
 
-        switch (layerName) {
-            case "mrtwfs:LandSlidePoly":
-                isLandslideRequest = true;
-                break;
-            case "mrtwfs:ProclaimedAreasPoly":
-                isProclaimedRequest = true;
-                break;
-            case "mrtwfs:Boreholes":
-                isBoreHoleRequest = true;
-                break;
-            case "mrtwfs:MineralOccurences":
-                isMineralRequest = true;
-                break;
-        }
+        // create a list to contain the MRT point datasets - the others are all polygons
+        ArrayList<String> geologyPointRequests = new ArrayList<>(Arrays.asList("mrtwfs:Boreholes", "mrtwfs:MineralOccurences"));
 
         if (!isGeologyRequest) {
             finalRequestString = generateString(selectedType, envelopeArray);
             Log.i(LOG_TAG, finalRequestString);
             geometryType = selectedType.getGeometryType(); // rings, paths or none
+        } else if (isGeologyRequest && geologyPointRequests.contains(layerName)) {
+            geometryType = "none";
+        } else {
+            geometryType = "rings";
         }
 
         mLocationCallback = new LocationCallback() {
@@ -363,12 +350,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
         if (marker.getTag() != null && !marker.getTag().equals("Added location")) {
             String textToSet = marker.getTag().toString();
-            if (textToSet.contains("SALT_FOR_HASHMAP$")) {
-                String trimmedText = textToSet.substring(textToSet.indexOf("$") + 1);
-                callout.setText(trimmedText);
-            } else {
-                callout.setText(textToSet);
-            }
+            callout.setText(textToSet);
             callout.setVisibility(View.VISIBLE);
             marker.setIcon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE));
         }
@@ -379,10 +361,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
      * {@link AsyncTask} to perform the network request on a background thread, and then
      * DO THE THINGS
      */
-    private class LISTMapAsyncTask extends AsyncTask<URL, Void, DataCollection> {
+    private class LISTMapAsyncTask extends AsyncTask<URL, Void, ArrayList<JSONPolyfeature>> {
 
         @Override
-        protected DataCollection doInBackground(URL... urls) {
+        protected ArrayList<JSONPolyfeature> doInBackground(URL... urls) {
             canMakeServerRequest = false;
             // Create URL object
             URL url = createUrl(finalRequestString);
@@ -395,44 +377,29 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 // TODO Handle the IOException
             }
 
-            // temporary REMOVE LATER
-            if (!isGeologyRequest && !geometryType.equals("none")) {
-                polyfeatureList = extractPolyFromJson(jsonResponse);
-            }
-
-            if (!isGeologyRequest) {
-                return extractFeatureFromJson(jsonResponse);
-            } else {
-                return extractGeologyFromJson(jsonResponse);
-            }
+            return extractPolyFromJson(jsonResponse);
         }
 
         /**
          */
         @Override
-        protected void onPostExecute(DataCollection testCollection) {
-            if (testCollection == null) {
+        protected void onPostExecute(ArrayList<JSONPolyfeature> featureList) {
+            if (featureList == null) {
                 Toast.makeText(getBaseContext(), "There was a problem with the server request",
                         Toast.LENGTH_SHORT).show();
                 progressBar.setVisibility(View.INVISIBLE);
                 canMakeServerRequest = true;
                 return;
             }
-            int collectionCount = testCollection.getGeometryLength();
+            int collectionCount = featureList.size();
             if (collectionCount == 0) {
                 Toast.makeText(getBaseContext(), "No results for this view", Toast.LENGTH_SHORT).show();
-            }
-
-            if (isGeologyRequest && !isBoreHoleRequest && !isMineralRequest) {
-                geometryType = "rings";
-            } else if (isBoreHoleRequest || isMineralRequest) {
-                geometryType = "none";
             }
 
             switch (geometryType) {
                 case "rings": // for rings or MRT data
                     final ArrayList<Polygon> polyFeatures = new ArrayList<>();
-                    for (JSONPolyfeature jsonPolygon : polyfeatureList) {
+                    for (JSONPolyfeature jsonPolygon : featureList) {
                         PolygonOptions rectOptions = new PolygonOptions()
                                 .add(new LatLng(37.35, -122.0),
                                         new LatLng(37.45, -122.0),
@@ -499,11 +466,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 case "none":
                     markers.clear();
                     for (int i = 0; i < collectionCount; i++) {
-                        final String keyValue = testCollection.getGeometries().get(i).keySet().toArray()[0].toString();
-                        Log.i(LOG_TAG, keyValue);
+                        final String keyValue = featureList.get(i).getName();
                         // Instantiates a new marker
                         MarkerOptions markerOptions = new MarkerOptions()
-                                .position(testCollection.getGeometries().get(i).get(keyValue).get(0))
+                                .position(featureList.get(i).getPointCoords())
                                 .title(keyValue);
                         Marker mMarker = mMap.addMarker(markerOptions);
                         mMarker.setTag(keyValue);
@@ -615,60 +581,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
             return output.toString();
         }
-
-        /**
-         * Return an {@link DataCollection} object by parsing out information
-         * about ALL THE THINGS
-         */
-        private DataCollection extractFeatureFromJson(String listMapJSON) {
-            if (TextUtils.isEmpty(listMapJSON)) { // checks for null and empty string
-                return null;
-            }
-            try { // check if there was an error
-                JSONObject baseJsonResponse = new JSONObject(listMapJSON);
-                if (baseJsonResponse.has("error")) {
-                    return null;
-                }
-
-                // setup object to hold data
-                DataCollection dataCollection = new DataCollection();
-                ArrayList<HashMap<String, ArrayList<LatLng>>> geometryToSet =
-                        new ArrayList<>();
-                dataCollection.setGeometries(geometryToSet);
-
-                JSONArray featureArray = baseJsonResponse.getJSONArray("features");
-                int length = featureArray.length();
-                for (int i = 0; i < length; i++) {
-                    JSONObject attributes = featureArray.getJSONObject(i);
-
-                    // string tags for datacollection
-                    String tagToSet = setTags(attributes.getJSONObject("attributes"));
-                    HashMap<String, ArrayList<LatLng>> mapToSet = new HashMap<>();
-                    JSONObject geometry = attributes.getJSONObject("geometry");
-                    /*
-                    * We can treat polygons and polylines, aka rings and paths, as equivalent
-                    * because the only real difference is that polygons close by having the same
-                    * end point as they started with. Internally in java and as far as the JSON goes
-                    * they look the same otherwise
-                     */
-
-                    if (geometryType.equals("none")) {
-                        Double x = geometry.getDouble("x");
-                        Double y = geometry.getDouble("y");
-                        ArrayList<LatLng> newGeometryFeature = new ArrayList<>();
-                        LatLng toAppend = new LatLng(y, x);
-                        newGeometryFeature.add(toAppend);
-                        mapToSet.put(tagToSet, newGeometryFeature);
-                    }
-                    dataCollection.addMapToGeometry(mapToSet);
-                }
-                return dataCollection;
-            } catch (JSONException e) {
-                Log.e(LOG_TAG, "Problem parsing the JSON results", e);
-            }
-            return null;
-        }
-
     }
 
     // new version using JSONPolyfeature object
@@ -683,146 +595,98 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
 
             // setup object to hold data
-            ArrayList<JSONPolyfeature> polyList = new ArrayList<>();
+            ArrayList<JSONPolyfeature> featureList = new ArrayList<>();
 
             JSONArray featureArray = baseJsonResponse.getJSONArray("features");
             int length = featureArray.length();
             for (int i = 0; i < length; i++) {
                 JSONObject attributes = featureArray.getJSONObject(i);
-                // string tag for polygon object
-                String tagToSet = setTags(attributes.getJSONObject("attributes"));
                 JSONObject geometry = attributes.getJSONObject("geometry");
-                JSONArray geometryArray = geometry.getJSONArray(geometryType);
-                // If there are results in the features array
-                if (geometryArray.length() > 0) {
-                    for (int counter = 0; counter < geometryArray.length(); counter++) {
-                        // make a new poly feature - can be polygon or polyline
-                        JSONPolyfeature newPolyFeature = new JSONPolyfeature(null, null);
-                        // make a List<LatLng> for the polygon geometry
-                        ArrayList<LatLng> newGeometryList = new ArrayList<>();
-                        JSONArray workingArray = geometryArray.getJSONArray(counter);
-                        int featureLength = workingArray.length();
-                        for (int j = 0; j < featureLength; j++) {
-                            try {
-                                double Lon = (workingArray.getJSONArray(j).getDouble(0));
-                                double Lat = (workingArray.getJSONArray(j).getDouble(1));
-                                LatLng toAppend = new LatLng(Lat, Lon);
-                                newGeometryList.add(toAppend);
-                            } catch (NullPointerException e) {
-                                Log.i(LOG_TAG, "value was null");
-                            }
-                        }
-                        // set the geometry list to the object
-                        newPolyFeature.setGeometry(newGeometryList);
-                        if (counter == 0) {
-                            // if this is the FIRST object from the array, set the name
-                            newPolyFeature.setName(tagToSet);
-                            polyList.add(newPolyFeature);
-                        } else {
-                            JSONPolyfeature firstFeature = polyList.get(0);
-                            double firstArea = SphericalUtil.computeSignedArea(firstFeature.getGeometry());
-                            double thisArea = SphericalUtil.computeSignedArea(newPolyFeature.getGeometry());
-                            boolean thisSmaller = Math.abs(thisArea) < Math.abs(firstArea);
-                            boolean oppositeSigns = (firstArea > 0 && thisArea < 0) || (firstArea < 0 && thisArea > 0);
-                            if (geometryType.equals("rings") && thisSmaller && oppositeSigns) {
-                                // has holes is NOT applicable to paths/polylines
-                                // has holes - if not not setup previously, do now:
-                                if (!firstFeature.hasHoles()) {
-                                    firstFeature.setHoles(new ArrayList<>());
-                                    firstFeature.setHasHoles(true);
-                                }
-                                // this is a hole, so it doesn't get a name, and it gets added to the
-                                // hole list, not the main list
-                                firstFeature.addHoleToList(newGeometryList);
-                            } else {
-                                // not a hole, but a second/third/nth part to the shape
-                                newPolyFeature.setName(tagToSet);
-                                polyList.add(newPolyFeature);
-                            }
-                        }
-                    }
+
+
+                // differentiate between MRT and The LIST
+                JSONArray geometryArray;
+                String tagToSet;
+                if (!isGeologyRequest) {
+                    tagToSet = setTags(attributes.getJSONObject("attributes"));
+                    geometryArray = geometry.getJSONArray(geometryType);
+                } else {
+                    tagToSet = geoTags(attributes.getJSONObject("properties"));
+                    geometryArray = geometry.getJSONArray("coordinates");
                 }
-            }
-            return polyList;
-        } catch (JSONException e) {
-            Log.e(LOG_TAG, "Problem parsing the JSON results", e);
-        }
-        return null;
-    }
 
-    /**
-     * Return an {@link DataCollection} object by parsing out information
-     * about ALL THE THINGS
-     */
-    private DataCollection extractGeologyFromJson(String listMapJSON) {
-        if (TextUtils.isEmpty(listMapJSON)) { // checks for null and empty string
-            return null;
-        }
-        try { // see if an error was returned
-            JSONObject baseJsonResponse = new JSONObject(listMapJSON);
-            if (baseJsonResponse.has("error")) {
-                return null;
-            }
-
-            // setup object to hold data
-            DataCollection dataCollection = new DataCollection();
-            ArrayList<HashMap<String, ArrayList<LatLng>>> geometryToSet =
-                    new ArrayList<>();
-            dataCollection.setGeometries(geometryToSet);
-
-            JSONArray featureArray = baseJsonResponse.getJSONArray("features");
-            int length = featureArray.length();
-            for (int i = 0; i < length; i++) {
-                JSONObject features = featureArray.getJSONObject(i);
-
-                // string tags for datacollection
-                JSONObject properties = features.getJSONObject("properties");
-                String tagToSet = geoTags(properties);
-                // Log.i("CHECK STRING", tagToSet);
-
-                HashMap<String, ArrayList<LatLng>> mapToSet = new HashMap<>();
-
-                JSONObject geometry = features.getJSONObject("geometry");
-
-                if (!isBoreHoleRequest && !isMineralRequest) {
-                    JSONArray geometryArray = geometry.getJSONArray("coordinates");
+                if (geometryType.equals("paths") || geometryType.equals("rings")) {
                     // If there are results in the features array
                     if (geometryArray.length() > 0) {
                         for (int counter = 0; counter < geometryArray.length(); counter++) {
-                            ArrayList<LatLng> newGeometryFeature = new ArrayList<>();
-                            // note extra level of array nesting for MRT data
-                            JSONArray workingArray = geometryArray.getJSONArray(counter).getJSONArray(0);
+                            // make a new poly feature - can be polygon or polyline
+                            JSONPolyfeature newPolyFeature = new JSONPolyfeature();
+                            // make a List<LatLng> for the object geometry
+                            ArrayList<LatLng> newGeometryList = new ArrayList<>();
+                            JSONArray workingArray;
+                            if (!isGeologyRequest) { // The LIST
+                                workingArray = geometryArray.getJSONArray(counter);
+                            } else { // MRT request has extra level of nexting
+                                workingArray = geometryArray.getJSONArray(counter).getJSONArray(0);
+                            }
+
                             int featureLength = workingArray.length();
                             for (int j = 0; j < featureLength; j++) {
                                 try {
                                     double Lon = (workingArray.getJSONArray(j).getDouble(0));
                                     double Lat = (workingArray.getJSONArray(j).getDouble(1));
                                     LatLng toAppend = new LatLng(Lat, Lon);
-                                    newGeometryFeature.add(toAppend);
+                                    newGeometryList.add(toAppend);
                                 } catch (NullPointerException e) {
                                     Log.i(LOG_TAG, "value was null");
                                 }
                             }
+                            // set the geometry list to the object
+                            newPolyFeature.setGeometry(newGeometryList);
                             if (counter == 0) {
-                                mapToSet.put(tagToSet, newGeometryFeature);
+                                // if this is the FIRST object from the array, set the name
+                                newPolyFeature.setName(tagToSet);
+                                featureList.add(newPolyFeature);
                             } else {
-                                String holeTag = String.valueOf(counter) + "SALT_FOR_HASHMAP$" + tagToSet;
-                                mapToSet.put(holeTag, newGeometryFeature);
+                                JSONPolyfeature firstFeature = featureList.get(0);
+                                double firstArea = SphericalUtil.computeSignedArea(firstFeature.getGeometry());
+                                double thisArea = SphericalUtil.computeSignedArea(newPolyFeature.getGeometry());
+                                boolean thisSmaller = Math.abs(thisArea) < Math.abs(firstArea);
+                                boolean oppositeSigns = (firstArea > 0 && thisArea < 0) || (firstArea < 0 && thisArea > 0);
+                                if (geometryType.equals("rings") && thisSmaller && oppositeSigns) {
+                                    // has holes is NOT applicable to paths/polylines
+                                    // has holes - if not not setup previously, do now:
+                                    if (!firstFeature.hasHoles()) {
+                                        firstFeature.setHoles(new ArrayList<>());
+                                        firstFeature.setHasHoles(true);
+                                    }
+                                    // this is a hole, so it doesn't get a name, and it gets added to the
+                                    // hole list, not the main list
+                                    firstFeature.addHoleToList(newGeometryList);
+                                } else {
+                                    // not a hole, but a second/third/nth part to the shape
+                                    newPolyFeature.setName(tagToSet);
+                                    featureList.add(newPolyFeature);
+                                }
                             }
                         }
                     }
-                } else {
-                    JSONArray geometryArray = geometry.getJSONArray("coordinates");
-                    Double x = (Double) geometryArray.get(0);
-                    Double y = (Double) geometryArray.get(1);
-                    ArrayList<LatLng> newGeometryFeature = new ArrayList<>();
-                    LatLng toAppend = new LatLng(y, x);
-                    newGeometryFeature.add(toAppend);
-                    mapToSet.put(tagToSet, newGeometryFeature);
+                } else if (geometryType.equals("none")) { // for point features
+                    Double x;
+                    Double y;
+                    if (isGeologyRequest) {
+                        x = (Double) geometryArray.get(0);
+                        y = (Double) geometryArray.get(1);
+                    } else {
+                        x = geometry.getDouble("x");
+                        y = geometry.getDouble("y");
+                    }
+                    LatLng newLatLng = new LatLng(y, x);
+                    JSONPolyfeature newPointFeature = new JSONPolyfeature(tagToSet, newLatLng);
+                    featureList.add(newPointFeature);
                 }
-                dataCollection.addMapToGeometry(mapToSet);
             }
-            return dataCollection;
+            return featureList;
         } catch (JSONException e) {
             Log.e(LOG_TAG, "Problem parsing the JSON results", e);
         }
@@ -830,24 +694,31 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private String geoTags(JSONObject json) {
-        // string tags for datacollection
+        // string tags for feature
         String[] stringArray;
         String[] landslip = {"NAME", "FEATURE_TYPE", "ACTIVITY_STATE", "CLASSIFICATION_MATERIAL_TYPE", "DETAILS"};
         String[] licence = {"NAME", "OWNER", "STATUS", "EXPIREDATE", "DETAILS"};
         String[] proclaimed = {"GID", "AREA_CLASSIFICATION", "STATUTORY_RULE"};
         String[] borehole = {"NAME", "PURPOSE", "OPERATOR", "DRILLDATE", "DETAILS"};
         String[] minerals = {"DEPOSIT_NAME", "TYPE", "GEOLOGICALUNIT", "COMMODITY", "DETAILS"};
+        boolean isProclaimedRequest = false;
 
-        if (isLandslideRequest) {
-            stringArray = landslip;
-        } else if (isProclaimedRequest) {
-            stringArray = proclaimed;
-        } else if (isBoreHoleRequest) {
-            stringArray = borehole;
-        } else if (isMineralRequest) {
-            stringArray = minerals;
-        } else {
-            stringArray = licence;
+        switch (layerName) {
+            case "mrtwfs:LandSlidePoly":
+                stringArray = landslip;
+                break;
+            case "mrtwfs:ProclaimedAreasPoly":
+                stringArray = proclaimed;
+                isProclaimedRequest = true;
+                break;
+            case "mrtwfs:Boreholes":
+                stringArray = borehole;
+                break;
+            case "mrtwfs:MineralOccurences":
+                stringArray = minerals;
+                break;
+            default:
+                stringArray = licence;
         }
 
         try {

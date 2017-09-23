@@ -82,7 +82,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private boolean canMakeServerRequest = true;
     private ProgressBar progressBar;
     private LatLng initialPosition;
-    private final int ZOOM_LEVEL = 17;
+    private float ZOOM_LEVEL = 17;
     private TextView callout;
 
     private String layerName;
@@ -115,6 +115,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         canNavigate = prefs.getBoolean("canNavigate", true);
         String latString = prefs.getString("lat", "-41.436033");
         String lonString = prefs.getString("lon", "147.138470");
+        ZOOM_LEVEL = prefs.getFloat("zoom", 17);
         initialPosition = new LatLng(Double.valueOf(latString), Double.valueOf(lonString));
 
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
@@ -192,19 +193,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
         };
 
-        if (checkLocationPermission() && canNavigate) {
-            mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
-            createLocationRequest();
-            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION)
-                    == PackageManager.PERMISSION_GRANTED) {
-                //Request location updates:
-                mRequestingLocationUpdates = true;
-                mFusedLocationClient.requestLocationUpdates(mLocationRequest,
-                        mLocationCallback,
-                        null /* Looper */);
-            }
-        }
-
+        startLocationUpdates();
         chooseTaskAndExecute();
         progressBar.setVisibility(View.VISIBLE);
     }
@@ -218,6 +207,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mLocationRequest.setInterval(5000);
         mLocationRequest.setFastestInterval(2000);
         mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+    }
+
+    private void startLocationUpdates() {
+        if (checkLocationPermission() && canNavigate) {
+            mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+            createLocationRequest();
+            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION)
+                    == PackageManager.PERMISSION_GRANTED) {
+                //Request location updates:
+                mRequestingLocationUpdates = true;
+                mFusedLocationClient.requestLocationUpdates(mLocationRequest,
+                        mLocationCallback,
+                        null /* Looper */);
+            }
+        }
     }
 
     private String[] generateEnvelope() {
@@ -434,14 +438,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                             polygon.setHoles(jsonPolygon.getHoles());
                         }
                         doPolygonStyling(tag, polygon);
-                        if ((layerName.equals("Cadastral Parcels") && tag.contains("PID: 0")) ||
-                                (layerName.equals("TasWater Water Serviced Land")
-                                        && SphericalUtil.computeSignedArea(polygon.getPoints()) > 0)) {
-                            polygon.remove();
-                            continue;
-                        }
                         polygon.setTag(tag);
-                        polygon.setClickable(true);
+                        if (layerName.equals("Cadastral Parcels") && tag.contains("PID: 0")) {
+                            polygon.setClickable(false);
+                        } else {
+                            polygon.setClickable(true);
+                        }
                         polygon.setStrokeWidth(3);
                         polyFeatures.add(polygon);
                         mMap.setOnPolygonClickListener(polygon1 -> {
@@ -763,8 +765,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         stringArray[3] + ": " + strFour + "\n" +
                         stringArray[4] + ": " + trimFive;
             } else {
+                String tempTwo = strTwo.replace("(<a target=\"_blank\" href=\"", "");
+                String trimTwo = tempTwo.substring(0, tempTwo.indexOf("\""));
                 return stringArray[0] + ": " + strOne + "\n" +
-                        stringArray[1] + ": " + strTwo + "\n" +
+                        stringArray[1] + ": " + trimTwo + "\n" +
                         stringArray[2] + ": " + strThree;
             }
 
@@ -837,10 +841,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private void setLastLocation() {
         LatLng newLocation = mMap.getCameraPosition().target;
+        float currentZoom = mMap.getCameraPosition().zoom;
         SharedPreferences.Editor prefEditor =
                 PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).edit();
         prefEditor.putString("lat", String.valueOf(newLocation.latitude));
         prefEditor.putString("lon", String.valueOf(newLocation.longitude));
+        prefEditor.putFloat("zoom", currentZoom);
         prefEditor.apply();
     }
 

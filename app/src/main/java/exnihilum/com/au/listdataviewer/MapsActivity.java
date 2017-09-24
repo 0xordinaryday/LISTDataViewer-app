@@ -69,6 +69,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public static final String LOG_TAG = MapsActivity.class.getSimpleName();
     private boolean isGeologyRequest = false;
     private boolean isCOLRequest = false;
+    private boolean isHCCRequest = false;
     private boolean canNavigate;
     private boolean haveSoughtNavigationPermission;
     private GoogleMap mMap;
@@ -89,6 +90,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private String layerName;
     private boolean hasSecondLayer = false;
     private String server;
+    private String mapValue = "";
 
     // location stuff
     private LocationCallback mLocationCallback;
@@ -135,6 +137,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         Intent createIntent = getIntent();
         layerName = createIntent.getStringExtra("layerName");
         server = createIntent.getStringExtra("server");
+        mapValue = createIntent.getStringExtra("mapValue");
 
         switch (server) {
             case "MRT":
@@ -153,6 +156,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         if (server.equals("COL")) {
             isCOLRequest = true;
+        } else if (server.equals("HCC")) {
+            isHCCRequest = true;
         }
 
         // create a list to contain the MRT point datasets - the others are all polygons
@@ -160,7 +165,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         if (!isGeologyRequest) {
             finalRequestString = generateString(selectedType, envelopeArray);
-            // Log.i(LOG_TAG, finalRequestString);
+            Log.i(LOG_TAG, finalRequestString);
             geometryType = selectedType.getGeometryType(); // rings, paths or none
         } else if (isGeologyRequest && geologyPointRequests.contains(layerName)) {
             geometryType = "none";
@@ -273,13 +278,22 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private String generateString(LayerType type, String[] envelope) {
         String separator = "%2C";
         String LIST_REQUEST_URL_PART1;
-        if (!isCOLRequest) {
-            LIST_REQUEST_URL_PART1 = "http://services.thelist.tas.gov.au/arcgis/rest/services/Public/";
-        } else {
+        String LIST_REQUEST_URL_PART5;
+        String LIST_REQUEST_URL_PART2;
+        if (isCOLRequest) {
             LIST_REQUEST_URL_PART1 = "http://mapping.launceston.tas.gov.au/arcgis/rest/services/Public/";
+            LIST_REQUEST_URL_PART5 = "&returnGeometry=true&outSR=4326&f=pjson";
+            LIST_REQUEST_URL_PART2 = "/MapServer/";
+        } else if (isHCCRequest) {
+            LIST_REQUEST_URL_PART1 = "https://services1.arcgis.com/";
+            LIST_REQUEST_URL_PART5 = "&returnGeometry=true&returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=4326&returnIdsOnly=false&returnCountOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&gdbVersion=&returnDistinctValues=false&resultOffset=&resultRecordCount=&f=pjson";
+            LIST_REQUEST_URL_PART2 = "/arcgis/rest/services/" + mapValue + "/FeatureServer/";
+        } else {
+            LIST_REQUEST_URL_PART1 = "http://services.thelist.tas.gov.au/arcgis/rest/services/Public/";
+            LIST_REQUEST_URL_PART5 = "&returnGeometry=true&returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=4326&returnIdsOnly=false&returnCountOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&gdbVersion=&returnDistinctValues=false&resultOffset=&resultRecordCount=&f=pjson";
+            LIST_REQUEST_URL_PART2 = "/MapServer/";
         }
 
-        String LIST_REQUEST_URL_PART2 = "/MapServer/";
         String LIST_REQUEST_URL_PART3 = "/query?where=&text=&objectIds=&time=&geometry=" +
                 envelope[1] +
                 separator +
@@ -289,7 +303,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 separator +
                 envelope[2] +
                 "&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects&relationParam=&outFields=";
-        String LIST_REQUEST_URL_PART5 = "&returnGeometry=true&returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=4326&returnIdsOnly=false&returnCountOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&gdbVersion=&returnDistinctValues=false&resultOffset=&resultRecordCount=&f=pjson";
+
 
         PARAM1 = type.getParam1();
         PARAM2 = type.getParam2();

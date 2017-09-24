@@ -14,7 +14,6 @@ import android.preference.PreferenceManager;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -49,6 +48,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
     TextView goButton;
     HashMap<String, String> geologyLayerMap;
     HashMap<String, String> cOLLayerMap;
+    HashMap<String, String> hCCLayerMap;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,6 +59,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         geologyLayerMap = ParametersHelper.makeGeologyLayerMap();
         categoryMap = ParametersHelper.makeCategoryMap();
         cOLLayerMap = ParametersHelper.makeCOLLayerMap();
+        hCCLayerMap = ParametersHelper.makeHCCLayerMap();
 
         Spinner spinnerDetail = (Spinner) findViewById(R.id.layers_spinner);
         Spinner spinnerCategory = (Spinner) findViewById(R.id.category_spinner);
@@ -91,10 +92,6 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
             }
         }
 
-        for (String layer:layerLabels) {
-            Log.i("listdata", layer);
-        }
-
         goButton = (TextView) findViewById(R.id.go);
         goButton.setAlpha((float) 0.4);
         goButton.setOnClickListener(view -> {
@@ -111,6 +108,11 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
                                     case "MRT":
                                         intent.putExtra("layerName", geologyLayerMap.get(item));
                                         intent.putExtra("server", "MRT");
+                                        break;
+                                    case "HCC":
+                                        intent.putExtra("layerName", item);
+                                        intent.putExtra("mapValue", hCCLayerMap.get(item));
+                                        intent.putExtra("server", "HCC");
                                         break;
                                     default:
                                         intent.putExtra("layerName", type.getLayerName());

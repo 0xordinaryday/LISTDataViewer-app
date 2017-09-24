@@ -20,7 +20,10 @@ public class ParametersHelper {
 
     public static ArrayList<LayerType> layerTypes() {
         ArrayList<LayerType> layers = new ArrayList<>();
+        layers.add(new LayerType("HCC", "NHqdsnvwfSTg42I8", "Urban Art", "none", "0", "Artist", "Title", "Materials", "Description"));
+
         layers.add(new LayerType("COL", "ParksAndRecreation", "Trees", "none", "1", "objectid", "name", "genusspecies"));
+        layers.add(new LayerType("COL", "ParksAndRecreation", "Public Land", "rings", "4", "objectid", "plannotation"));
 
         layers.add(new LayerType("LIST", "CadastreAndAdministrative", "Heritage Register", "none", "0", "NAME", "ADDRESS", "STATUS", "THR_ID"));
         layers.add(new LayerType("LIST", "CadastreAndAdministrative", "Crown Leases", "rings", "2", "LEASE_TY", "PLAN_REF", "VOLUME", "FOLIO"));
@@ -125,6 +128,7 @@ public class ParametersHelper {
     public static ArrayList<String> getCategories() {
         ArrayList<String> categories = new ArrayList<String>();
         categories.add("CityOfLaunceston");
+        categories.add("HobartCityCouncil");
         // categories.add("ABSdata");
         categories.add("CadastreAndAdministrative");
         // categories.add("CadastreParcels");
@@ -153,6 +157,7 @@ public class ParametersHelper {
         // categoryMap.put("ABS Statistical Data", "ABSdata");
         categoryMap.put("Cadastre And Administrative", "LIST"+"CadastreAndAdministrative");
         categoryMap.put("City Of Launceston", "COL"+"ParksAndRecreation");
+        categoryMap.put("Hobart City Council", "HCC"+"NHqdsnvwfSTg42I8");
         // categoryMap.put("Cadastre Parcels", "CadastreParcels");
         // categoryMap.put("Climate Change", "ClimateChange");
         // categoryMap.put("Common Operating Platform Public", "COPpublic");
@@ -199,7 +204,14 @@ public class ParametersHelper {
     public static HashMap<String, String> makeCOLLayerMap() {
         HashMap<String, String> cOLLayerMap = new HashMap<>();
         cOLLayerMap.put("Trees", "Trees");
+        cOLLayerMap.put("Public Land", "Public Land");
         return cOLLayerMap;
+    }
+
+    public static HashMap<String, String> makeHCCLayerMap() {
+        HashMap<String, String> hCCLayerMap = new HashMap<>();
+        hCCLayerMap.put("Urban Art", "Urban_Art");
+        return hCCLayerMap;
     }
 
     public static Set<String> getCOLLayers() {
@@ -209,6 +221,15 @@ public class ParametersHelper {
             cOLLayerSet.add(cOLLayerMap.get(key));
         }
         return cOLLayerSet;
+    }
+
+    public static Set<String> getHCCLayers() {
+        Set<String> hCCLayerSet = new HashSet<>();
+        HashMap<String, String> hCCLayerMap = makeHCCLayerMap();
+        for (String key:hCCLayerMap.keySet()) {
+            hCCLayerSet.add(hCCLayerMap.get(key));
+        }
+        return hCCLayerSet;
     }
 
     public static Set<String> getGeologyLayers() {

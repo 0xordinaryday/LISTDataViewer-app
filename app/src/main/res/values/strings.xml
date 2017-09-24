@@ -7,8 +7,8 @@
     <string name="ok">OK</string>
     <string name="title_location_permission">OK to use location?</string>
     <string name="text_location_permission">In order for the app to use your location, you
-        need to grant this permission. You can choose not to, but the app will not display
-        your location.</string>
+        need to grant this permission. You can choose not to, but if so you will need to
+        manually position the map.</string>
     <string name="go_button">Go</string>
     <string name="about_button">About</string>
     <string name="action_settings">Settings</string>
@@ -20,7 +20,7 @@
     <!-- about page stuff -->
     <string name="about_page_description" translatable="false">blah blah</string>
 
-    <string name="contact_us">Contact us</string>
+    <string name="contact_us">Contact me</string>
     <string name="instagram">Follow us on Instagram</string>
     <string name="facebook">Like us on Facebook</string>
     <string name="play_store">Rate us on the Play Store</string>
@@ -36,13 +36,19 @@
         <a href="http://listdata.thelist.tas.gov.au/public/LISTWebServicesTermsConditions.pdf">here</a>.
         Note this link leads to a PDF file of the terms and conditions.\n\n
 
-        LISTData viewer is not created, supported or endorsed by The LIST, the Department of Primary
-        Industries, Parks, Water and Environment, or the State Government. It has been
-        developed by ex nihilum as a freely available mobile viewer for publicly accessible data
-        from The LIST. Note that The LIST data is generally subject to Creative Commons 3 (or attribution)
-        licencing. \n\n
+        The app also displays data from the Mineral Resources Tasmania Web Feature Service found
+        <a href="http://www.mrt.tas.gov.au/portal/wfs">here</a>.
 
-        Queries regarding LISTData viewer can be directed to the creator via the link below.
+        LISTData Viewer is not created, supported or endorsed by The LIST, the Department of Primary
+        Industries, Parks, Water and Environment, Mineral Resources Tasmania, The Department of State
+        Growth or any other part of the State Government - in fact they are probably largely unaware
+        of it.\n\n
+
+        It has been developed by ex nihilum as a freely available mobile viewer for publicly
+        accessible data from The LIST and other open Tasmanian spatial data sources. Note that The
+        LIST data is generally subject to Creative Commons 3 (or attribution) licencing. \n\n
+
+        Queries regarding LISTData Viewer can be directed to the creator via the link below.
     </string>
     <!-- end about -->
 

@@ -14,6 +14,7 @@ import android.preference.PreferenceManager;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -47,6 +48,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
     ArrayAdapter<String> detailAdapter;
     TextView goButton;
     HashMap<String, String> geologyLayerMap;
+    HashMap<String, String> cOLLayerMap;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -56,6 +58,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         // make maps
         geologyLayerMap = ParametersHelper.makeGeologyLayerMap();
         categoryMap = ParametersHelper.makeCategoryMap();
+        cOLLayerMap = ParametersHelper.makeCOLLayerMap();
 
         Spinner spinnerDetail = (Spinner) findViewById(R.id.layers_spinner);
         Spinner spinnerCategory = (Spinner) findViewById(R.id.category_spinner);
@@ -82,9 +85,14 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         // set initial values for detail
         String category = spinnerCategory.getSelectedItem().toString();
         for (LayerType type : layers) {
-            if (type.getClassification().equals(categoryMap.get(category))) {
+            String combined = type.getServer() + type.getClassification();
+            if (combined.equals(categoryMap.get(category))) {
                 layerLabels.add(type.getLayerName());
             }
+        }
+
+        for (String layer:layerLabels) {
+            Log.i("listdata", layer);
         }
 
         goButton = (TextView) findViewById(R.id.go);
@@ -95,11 +103,19 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
                         for (LayerType type : layers) {
                             if (type.isNameEqualTo(item)) {
                                 Intent intent = new Intent(getApplicationContext(), MapsActivity.class);
-                                if (type.getClassification().equals("GeologyRequest")) {
-                                    intent.putExtra("key", item);
-                                    intent.putExtra("layerName", geologyLayerMap.get(item));
-                                } else {
-                                    intent.putExtra("layerName", type.getLayerName());
+                                switch (type.getServer()) {
+                                    case "COL":
+                                        intent.putExtra("layerName", cOLLayerMap.get(item));
+                                        intent.putExtra("server", "COL");
+                                        break;
+                                    case "MRT":
+                                        intent.putExtra("layerName", geologyLayerMap.get(item));
+                                        intent.putExtra("server", "MRT");
+                                        break;
+                                    default:
+                                        intent.putExtra("layerName", type.getLayerName());
+                                        intent.putExtra("server", "LIST");
+                                        break;
                                 }
                                 startActivity(intent);
                             }
@@ -120,7 +136,8 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
             String item = (String) parent.getItemAtPosition(pos);
             layerLabels.clear();
             for (LayerType type : layers) {
-                if (type.getClassification().equals(categoryMap.get(item))) {
+                String combined = type.getServer() + type.getClassification();
+                if (combined.equals(categoryMap.get(item))) {
                     layerLabels.add(type.getLayerName());
                 }
             }

@@ -7,6 +7,7 @@ package exnihilum.com.au.listdataviewer;
 
 public class LayerType {
 
+    private String server;
     private String classification;
     private String layerName;
     private String geometryType;
@@ -16,8 +17,9 @@ public class LayerType {
     private String param3;
     private String param4;
 
-    public LayerType(String classification, String layerName,
+    public LayerType(String server, String classification, String layerName,
                      String geometryType, String layerID, String param1, String param2) {
+        this.server = server;
         this.classification = classification;
         this.layerName = layerName;
         this.geometryType = geometryType;
@@ -28,8 +30,9 @@ public class LayerType {
         this.param4 = null;
     }
 
-    public LayerType(String classification, String layerName,
+    public LayerType(String server, String classification, String layerName,
                      String geometryType, String layerID, String param1, String param2, String param3) {
+        this.server = server;
         this.classification = classification;
         this.layerName = layerName;
         this.geometryType = geometryType;
@@ -40,8 +43,9 @@ public class LayerType {
         this.param4 = null;
     }
 
-    public LayerType(String classification, String layerName,
+    public LayerType(String server, String classification, String layerName,
                      String geometryType, String layerID, String param1, String param2, String param3, String param4) {
+        this.server = server;
         this.classification = classification;
         this.layerName = layerName;
         this.geometryType = geometryType;
@@ -82,6 +86,14 @@ public class LayerType {
 
     String getParam4() {
         return param4;
+    }
+
+    public String getServer() {
+        return server;
+    }
+
+    public void setServer(String server) {
+        this.server = server;
     }
 
     @Override

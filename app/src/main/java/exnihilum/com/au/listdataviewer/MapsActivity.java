@@ -56,7 +56,6 @@ import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Set;
 
 import Utilities.ParametersHelper;
 
@@ -69,7 +68,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
      */
     public static final String LOG_TAG = MapsActivity.class.getSimpleName();
     private boolean isGeologyRequest = false;
-    private boolean canNavigate = true;
+    private boolean isCOLRequest = false;
+    private boolean canNavigate;
+    private boolean haveSoughtNavigationPermission;
     private GoogleMap mMap;
     private ArrayList<LayerType> layers = ParametersHelper.layerTypes();
     private String geometryType;
@@ -86,6 +87,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private TextView callout;
 
     private String layerName;
+    private boolean hasSecondLayer = false;
+    private String server;
 
     // location stuff
     private LocationCallback mLocationCallback;
@@ -113,6 +116,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         // get initial position from shared preferences, and check if navigation allowed
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         canNavigate = prefs.getBoolean("canNavigate", true);
+        haveSoughtNavigationPermission = prefs.getBoolean("askedPermission", false);
         String latString = prefs.getString("lat", "-41.436033");
         String lonString = prefs.getString("lon", "147.138470");
         ZOOM_LEVEL = prefs.getFloat("zoom", 17);
@@ -130,19 +134,25 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         Intent createIntent = getIntent();
         layerName = createIntent.getStringExtra("layerName");
-        String key = createIntent.getStringExtra("key");
-        // see if it was a geology layer
-        Set<String> geologyLayers = ParametersHelper.getGeologyLayers();
-        if (geologyLayers.contains(key)) {
-            String geologyString = makeGeologyString(layerName, generateEnvelope());
-            isGeologyRequest = true;
-            finalRequestString = geologyString;
-        } else {
-            for (LayerType type : layers) {
-                if (type.isNameEqualTo(layerName)) {
-                    selectedType = type;
+        server = createIntent.getStringExtra("server");
+
+        switch (server) {
+            case "MRT":
+                String geologyString = makeGeologyString(layerName, generateEnvelope());
+                isGeologyRequest = true;
+                finalRequestString = geologyString;
+                break;
+            default:
+                for (LayerType type : layers) {
+                    if (type.isNameEqualTo(layerName)) {
+                        selectedType = type;
+                    }
                 }
-            }
+                break;
+        }
+
+        if (server.equals("COL")) {
+            isCOLRequest = true;
         }
 
         // create a list to contain the MRT point datasets - the others are all polygons
@@ -193,6 +203,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
         };
 
+        if (!haveSoughtNavigationPermission) {
+            checkLocationPermission();
+        }
+
         startLocationUpdates();
         chooseTaskAndExecute();
         progressBar.setVisibility(View.VISIBLE);
@@ -210,7 +224,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private void startLocationUpdates() {
-        if (checkLocationPermission() && canNavigate) {
+        if (canNavigate) {
             mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
             createLocationRequest();
             if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION)
@@ -258,8 +272,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private String generateString(LayerType type, String[] envelope) {
         String separator = "%2C";
+        String LIST_REQUEST_URL_PART1;
+        if (!isCOLRequest) {
+            LIST_REQUEST_URL_PART1 = "http://services.thelist.tas.gov.au/arcgis/rest/services/Public/";
+        } else {
+            LIST_REQUEST_URL_PART1 = "http://mapping.launceston.tas.gov.au/arcgis/rest/services/Public/";
+        }
 
-        String LIST_REQUEST_URL_PART1 = "http://services.thelist.tas.gov.au/arcgis/rest/services/Public/";
         String LIST_REQUEST_URL_PART2 = "/MapServer/";
         String LIST_REQUEST_URL_PART3 = "/query?where=&text=&objectIds=&time=&geometry=" +
                 envelope[1] +
@@ -613,7 +632,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
         try { // check if there was an error
             JSONObject baseJsonResponse = new JSONObject(listMapJSON);
-            if (baseJsonResponse.has("error")) { return null; }
+            if (baseJsonResponse.has("error")) {
+                return null;
+            }
 
             // setup object to hold data
             ArrayList<JSONPolyfeature> featureList = new ArrayList<>();
@@ -839,6 +860,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         return null;
     }
 
+    private void addSecondLayer() {
+        hasSecondLayer = true;
+        SharedPreferences.Editor prefEditor =
+                PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).edit();
+        prefEditor.putString("firstLayer", layerName);
+        prefEditor.apply();
+    }
+
     private void setLastLocation() {
         LatLng newLocation = mMap.getCameraPosition().target;
         float currentZoom = mMap.getCameraPosition().zoom;
@@ -848,6 +877,22 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         prefEditor.putString("lon", String.valueOf(newLocation.longitude));
         prefEditor.putFloat("zoom", currentZoom);
         prefEditor.apply();
+    }
+
+    private void saveCanNavigateStatus() {
+        SharedPreferences.Editor prefEditor =
+                PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).edit();
+        prefEditor.putBoolean("canNavigate", canNavigate);
+        prefEditor.putBoolean("askedPermission", true);
+        prefEditor.apply();
+    }
+
+    private void blankSecondLayer() {
+        SharedPreferences.Editor prefEditor =
+                PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).edit();
+        prefEditor.remove("firstLayer");
+        prefEditor.apply();
+        hasSecondLayer = false;
     }
 
     // location stuff
@@ -869,16 +914,23 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     protected void onStop() {
         super.onStop();
         setLastLocation();
+        if (!hasSecondLayer) {
+            blankSecondLayer();
+        }
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        checkLocationPermission();
+        if (!haveSoughtNavigationPermission) {
+            checkLocationPermission();
+        }
     }
 
     // location permission code
     public boolean checkLocationPermission() {
+        haveSoughtNavigationPermission = true;
+        Log.i(LOG_TAG, "Seeking location permission");
         if (Build.VERSION.SDK_INT >= 23 && ContextCompat.checkSelfPermission(this, android.Manifest.permission.
                 ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ContextCompat.checkSelfPermission(this,
                 android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -921,22 +973,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 // If request is cancelled, the result arrays are empty.
                 if (grantResults.length > 0
                         && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-
-                    // permission was granted, yay! Do the
-                    // location-related task you need to do.
-                    if (ContextCompat.checkSelfPermission(this,
-                            android.Manifest.permission.ACCESS_FINE_LOCATION)
-                            == PackageManager.PERMISSION_GRANTED) {
-
-                        //Request location updates:
-                        mFusedLocationClient.requestLocationUpdates(mLocationRequest,
-                                mLocationCallback,
-                                null /* Looper */);
-                    }
-
+                    //Request location updates:
+                    startLocationUpdates();
                 } else {
-                    // permission denied, boo! Disable the
-                    // functionality that depends on this permission.
+                    canNavigate = false;
+                    saveCanNavigateStatus();
                 }
             }
         }

@@ -921,6 +921,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private void stopLocationUpdates() {
         if (mFusedLocationClient != null) {
             mFusedLocationClient.removeLocationUpdates(mLocationCallback);
+            mFusedLocationClient = null;
         }
     }
 
@@ -936,7 +937,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     protected void onResume() {
         super.onResume();
-        if (!haveSoughtNavigationPermission) {
+        if (!haveSoughtNavigationPermission && canNavigate) {
             checkLocationPermission();
         }
     }

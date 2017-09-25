@@ -21,6 +21,7 @@ public class ParametersHelper {
     public static ArrayList<LayerType> layerTypes() {
         ArrayList<LayerType> layers = new ArrayList<>();
         layers.add(new LayerType("HCC", "NHqdsnvwfSTg42I8", "Urban Art", "none", "0", "Artist", "Title", "Materials", "Description"));
+        layers.add(new LayerType("HCC", "NHqdsnvwfSTg42I8", "Playgrounds", "none", "0", "NAME", "FULLADDR", "Toilets", "Play_equip"));
 
         layers.add(new LayerType("COL", "ParksAndRecreation", "Trees", "none", "1", "objectid", "name", "genusspecies"));
         layers.add(new LayerType("COL", "ParksAndRecreation", "Public Land", "rings", "4", "objectid", "plannotation"));
@@ -155,29 +156,29 @@ public class ParametersHelper {
     public static HashMap<String, String> makeCategoryMap() {
         HashMap<String, String> categoryMap = new HashMap<>();
         // categoryMap.put("ABS Statistical Data", "ABSdata");
-        categoryMap.put("Cadastre And Administrative", "LIST"+"CadastreAndAdministrative");
+        categoryMap.put("LIST Cadastre And Administrative", "LIST"+"CadastreAndAdministrative");
         categoryMap.put("City Of Launceston", "COL"+"ParksAndRecreation");
         categoryMap.put("Hobart City Council", "HCC"+"NHqdsnvwfSTg42I8");
         // categoryMap.put("Cadastre Parcels", "CadastreParcels");
         // categoryMap.put("Climate Change", "ClimateChange");
         // categoryMap.put("Common Operating Platform Public", "COPpublic");
         // categoryMap.put("Education", "Education");
-        categoryMap.put("Emergency Management Public", "LIST"+"EmergencyManagementPublic");
+        categoryMap.put("LIST Emergency Management Public", "LIST"+"EmergencyManagementPublic");
         // categoryMap.put("Flood Mapping Public", "FloodMappingPublic");
-        categoryMap.put("Geological And Soils - non MRT", "LIST"+"GeologicalAndSoils");
+        categoryMap.put("LIST Geological And Soils", "LIST"+"GeologicalAndSoils");
         categoryMap.put("Mineral Resources Tasmania", "MRT"+"GeologyRequest");
         // categoryMap.put("Indexes", "Indexes");
-        categoryMap.put("Infrastructure", "LIST"+"Infrastructure");
+        categoryMap.put("LIST Infrastructure", "LIST"+"Infrastructure");
         //  categoryMap.put("Marine And Coastal", "MarineAndCoastal");
         // categoryMap.put("MAX Biosecurity Public", "MAXBiosecurityPublic");
-        categoryMap.put("Natural Environment", "LIST"+"NaturalEnvironment");
+        categoryMap.put("LIST Natural Environment", "LIST"+"NaturalEnvironment");
         // categoryMap.put("Natural Values Atlas Data", "NVAdata");
-        categoryMap.put("Open Data Web Feature Service", "LIST"+"OpenDataWFS");
+        categoryMap.put("LIST Open Data Web Feature Service", "LIST"+"OpenDataWFS");
         // categoryMap.put("Placename Points", "PlacenamePoints");
         // categoryMap.put("Planning", "Planning");
-        categoryMap.put("Planning Online", "LIST"+"PlanningOnline");
+        categoryMap.put("LIST Planning Online", "LIST"+"PlanningOnline");
         // categoryMap.put("Search Service", "SearchService");
-        categoryMap.put("Topography And Relief", "LIST"+"TopographyAndRelief");
+        categoryMap.put("LIST Topography And Relief", "LIST"+"TopographyAndRelief");
         return categoryMap;
     }
 
@@ -211,6 +212,7 @@ public class ParametersHelper {
     public static HashMap<String, String> makeHCCLayerMap() {
         HashMap<String, String> hCCLayerMap = new HashMap<>();
         hCCLayerMap.put("Urban Art", "Urban_Art");
+        hCCLayerMap.put("Playgrounds", "Playgrounds_shape");
         return hCCLayerMap;
     }
 

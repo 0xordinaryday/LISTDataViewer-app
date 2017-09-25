@@ -188,6 +188,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
 
             case R.id.action_about:
                 Intent intent = new Intent(MainActivity.this, AboutActivity.class);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY);
                 startActivity(intent);
                 return true;
 

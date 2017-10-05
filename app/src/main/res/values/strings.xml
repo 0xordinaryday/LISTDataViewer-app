@@ -28,6 +28,8 @@
     <string name="website">Visit our website</string>
     <string name="copy_right">Copyrights © %1$d</string>
 
+    <string name="opacitySlider">Opacity</string>
+
     <string name="about_spiel">This app displays data from The LIST (Land Information System Tasmania),
         see <a href="https://www.thelist.tas.gov.au/app/content/home">here</a>. Specifically, the app
     displays data from the public ArcGIS REST Service which can be found

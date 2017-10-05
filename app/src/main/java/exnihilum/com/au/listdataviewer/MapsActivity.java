@@ -18,7 +18,9 @@ import android.text.method.LinkMovementMethod;
 import android.text.util.Linkify;
 import android.util.Log;
 import android.view.View;
+import android.widget.ImageView;
 import android.widget.ProgressBar;
+import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -99,6 +101,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public static final int MY_PERMISSIONS_REQUEST_LOCATION = 99;
     LocationRequest mLocationRequest = new LocationRequest();
 
+    private SeekBar opacitySlider;
+    private TextView opacityText;
+    private ImageView menuButton;
+    private boolean isMenuShowing = false;
+    private int alphaValue;
+
+    // polygon list, needs global access
+    private ArrayList<Polygon> polygonList = null;
+
     // arraylist for markers
     ArrayList<Marker> markers = new ArrayList<>();
 
@@ -111,9 +122,32 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
 
+        // find and hide views
         callout = (TextView) findViewById(R.id.text_callout);
         callout.setMovementMethod(LinkMovementMethod.getInstance());
         callout.setVisibility(View.INVISIBLE);
+
+        opacityText = (TextView) findViewById(R.id.opacityText);
+        menuButton = (ImageView) findViewById(R.id.mapMenuButton);
+        opacitySlider = (SeekBar) findViewById(R.id.opacitySlider);
+
+        opacitySlider.setVisibility(View.INVISIBLE);
+        opacityText.setVisibility(View.INVISIBLE);
+
+        // set onClick for menu button
+        menuButton.setOnClickListener(view -> {
+            if (!isMenuShowing && polygonList != null && !polygonList.isEmpty()) {
+                opacitySlider.setVisibility(View.VISIBLE);
+                opacityText.setVisibility(View.VISIBLE);
+                menuButton.setImageResource(android.R.drawable.ic_menu_close_clear_cancel);
+                isMenuShowing = true;
+            } else {
+                opacitySlider.setVisibility(View.INVISIBLE);
+                opacityText.setVisibility(View.INVISIBLE);
+                menuButton.setImageResource(android.R.drawable.ic_menu_add);
+                isMenuShowing = false;
+            }
+        });
 
         // get initial position from shared preferences, and check if navigation allowed
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
@@ -121,6 +155,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         haveSoughtNavigationPermission = prefs.getBoolean("askedPermission", false);
         String latString = prefs.getString("lat", "-41.436033");
         String lonString = prefs.getString("lon", "147.138470");
+        alphaValue = prefs.getInt("alpha", 100);
         ZOOM_LEVEL = prefs.getFloat("zoom", 17);
         initialPosition = new LatLng(Double.valueOf(latString), Double.valueOf(lonString));
 
@@ -133,6 +168,40 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         // set progress bar
         progressBar = (ProgressBar) findViewById(R.id.indeterminateBar);
+
+        // set opacity slider initial value
+        opacitySlider.setProgress(alphaValue);
+        // set listener for sliding
+        opacitySlider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            int positionValue = 0;
+
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int position, boolean fromUser) {
+                positionValue = position;
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+                // TODO Auto-generated method stub
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                alphaValue = positionValue;
+                SharedPreferences.Editor prefEditor =
+                        PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).edit();
+                prefEditor.putInt("alpha", positionValue);
+                prefEditor.apply();
+                // style polygons
+                for (Polygon polygon:polygonList) {
+                    int fillColor = polygon.getFillColor();
+                    int r = Color.red(fillColor);
+                    int g = Color.green(fillColor);
+                    int b = Color.blue(fillColor);
+                    polygon.setFillColor(Color.argb(alphaValue, r, g, b));
+                }
+            }
+        });
 
         Intent createIntent = getIntent();
         layerName = createIntent.getStringExtra("layerName");
@@ -481,17 +550,16 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         polyFeatures.add(polygon);
                         mMap.setOnPolygonClickListener(polygon1 -> {
                             for (Polygon feature : polyFeatures) {
-                                if (polygon1.getTag() != null) {
-                                    doPolygonStyling(polygon1.getTag().toString(), feature);
-                                }
+                                feature.setStrokeWidth(3);
                             }
-                            polygon1.setFillColor(Color.argb(100, 255, 250, 205));
+                            polygon1.setStrokeWidth(7);
                             if (polygon1.getTag() != null) {
                                 callout.setText(polygon1.getTag().toString());
                             }
                             callout.setVisibility(View.VISIBLE);
                         });
                     }
+                    polygonList = polyFeatures; // keep a copy of it
                     break;
                 case "paths":
                     final ArrayList<Polyline> lineFeatures = new ArrayList<>();
@@ -543,13 +611,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             switch (layerName) {
                 case "TasWater Water Serviced Land":
                     if (tag.contains("Full Service")) {
-                        polygon.setFillColor(Color.argb(100, 0, 191, 214));
+                        polygon.setFillColor(Color.argb(alphaValue, 0, 191, 214));
                     } else {
-                        polygon.setFillColor(Color.argb(100, 255, 198, 39));
+                        polygon.setFillColor(Color.argb(alphaValue, 255, 198, 39));
                     }
                     break;
                 default:
-                    polygon.setFillColor(Color.argb(0, 0, 0, 0));
+                    polygon.setFillColor(Color.argb(alphaValue, 150, 50, 50));
             }
         }
 

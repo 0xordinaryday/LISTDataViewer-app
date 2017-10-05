@@ -97,7 +97,7 @@ public class ParametersHelper {
         layers.add(new LayerType("LIST", "TopographyAndRelief", "Tracks", "paths", "24", "TRANS_TYPE", "TSEG_FEAT"));
 
         layers.add(new LayerType("LIST", "PlanningOnline", "Tasmanian Planning Scheme Overlay", "rings", "3", "SCHEMECODE", "PLANSCHEME", "COMMENTS"));
-        layers.add(new LayerType("LIST", "PlanningOnline", "Tasmanian Planning Zones", "rings", "4", "SCHEMECODE", "PLANSCHEME", "COMMENTS"));
+        layers.add(new LayerType("LIST", "PlanningOnline", "Tasmanian Planning Zones", "rings", "4", "SCHEMECODE", "ZONE", "PLANSCHEME", "COMMENTS"));
         layers.add(new LayerType("LIST", "PlanningOnline", "Tasmanian Planning Reference", "rings", "7", "LINK", "DESCRIPTION"));
 
         layers.add(new LayerType("LIST", "NaturalEnvironment", "TASVEG 3.0", "rings", "0", "VEG_GROUP", "VEGCODE", "VEGCODE_D", "PROJECT"));

@@ -58,7 +58,9 @@ import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 
+import Utilities.ColorMappingHelper;
 import Utilities.ParametersHelper;
 
 import static exnihilum.com.au.listdataviewer.R.id.map;
@@ -608,12 +610,20 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
 
         private void doPolygonStyling(String tag, Polygon polygon) {
-            switch (layerName) {
+            switch (layerName) { //
                 case "TasWater Water Serviced Land":
                     if (tag.contains("Full Service")) {
                         polygon.setFillColor(Color.argb(alphaValue, 0, 191, 214));
                     } else {
                         polygon.setFillColor(Color.argb(alphaValue, 255, 198, 39));
+                    }
+                    break;
+                case "Tasmanian Planning Zones":
+                    HashMap<String, Integer> colorMap = ColorMappingHelper.makePlanningOnlineColorMap(alphaValue);
+                    for (String key:colorMap.keySet()) {
+                        if (tag.contains(key)) {
+                            polygon.setFillColor(colorMap.get(key));
+                        }
                     }
                     break;
                 default:
@@ -774,12 +784,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                 newPolyFeature.setName(tagToSet);
                                 featureList.add(newPolyFeature);
                             } else {
-                                JSONPolyfeature firstFeature = featureList.get(0);
+                                JSONPolyfeature firstFeature = featureList.get(featureList.size() - 1); // get the most recent entry
                                 double firstArea = SphericalUtil.computeSignedArea(firstFeature.getGeometry());
                                 double thisArea = SphericalUtil.computeSignedArea(newPolyFeature.getGeometry());
-                                boolean thisSmaller = Math.abs(thisArea) < Math.abs(firstArea);
+                                // boolean thisSmaller = Math.abs(thisArea) < Math.abs(firstArea);
                                 boolean oppositeSigns = (firstArea > 0 && thisArea < 0) || (firstArea < 0 && thisArea > 0);
-                                if (geometryType.equals("rings") && thisSmaller && oppositeSigns) {
+                                if (geometryType.equals("rings") && !isGeologyRequest && oppositeSigns) { // assume any further parts are holes.
+                                // if (geometryType.equals("rings") && thisSmaller && oppositeSigns) {
+
                                     // has holes is NOT applicable to paths/polylines
                                     // has holes - if not not setup previously, do now:
                                     if (!firstFeature.hasHoles()) {

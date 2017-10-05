@@ -106,6 +106,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private SeekBar opacitySlider;
     private TextView opacityText;
     private ImageView menuButton;
+    private View sliderBackground;
     private boolean isMenuShowing = false;
     private int alphaValue;
 
@@ -132,20 +133,25 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         opacityText = (TextView) findViewById(R.id.opacityText);
         menuButton = (ImageView) findViewById(R.id.mapMenuButton);
         opacitySlider = (SeekBar) findViewById(R.id.opacitySlider);
+        sliderBackground = findViewById(R.id.sliderBackground);
 
         opacitySlider.setVisibility(View.INVISIBLE);
         opacityText.setVisibility(View.INVISIBLE);
+        sliderBackground.setVisibility(View.INVISIBLE);
+        menuButton.setColorFilter(Color.BLACK);
 
         // set onClick for menu button
         menuButton.setOnClickListener(view -> {
             if (!isMenuShowing && polygonList != null && !polygonList.isEmpty()) {
                 opacitySlider.setVisibility(View.VISIBLE);
                 opacityText.setVisibility(View.VISIBLE);
+                sliderBackground.setVisibility(View.VISIBLE);
                 menuButton.setImageResource(android.R.drawable.ic_menu_close_clear_cancel);
                 isMenuShowing = true;
             } else {
                 opacitySlider.setVisibility(View.INVISIBLE);
                 opacityText.setVisibility(View.INVISIBLE);
+                sliderBackground.setVisibility(View.INVISIBLE);
                 menuButton.setImageResource(android.R.drawable.ic_menu_add);
                 isMenuShowing = false;
             }

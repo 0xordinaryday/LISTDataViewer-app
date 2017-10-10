@@ -625,10 +625,26 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     }
                     break;
                 case "Tasmanian Planning Zones":
-                    HashMap<String, Integer> colorMap = ColorMappingHelper.makePlanningOnlineColorMap(alphaValue);
-                    for (String key:colorMap.keySet()) {
+                    HashMap<String, Integer> planningColorMap = ColorMappingHelper.makePlanningOnlineColorMap(alphaValue);
+                    for (String key:planningColorMap.keySet()) {
                         if (tag.contains(key)) {
-                            polygon.setFillColor(colorMap.get(key));
+                            polygon.setFillColor(planningColorMap.get(key));
+                        }
+                    }
+                    break;
+                case "Soil Types":
+                    HashMap<String, Integer> soilColorMap = ColorMappingHelper.makeSoilsColorMap(alphaValue);
+                    for (String key:soilColorMap.keySet()) {
+                        if (tag.contains(key)) {
+                            polygon.setFillColor(soilColorMap.get(key));
+                        }
+                    }
+                    break;
+                case "Authority Land":
+                    HashMap<String, Integer> authorityColorMap = ColorMappingHelper.makeAuthorityColorMap(alphaValue);
+                    for (String key:authorityColorMap.keySet()) {
+                        if (tag.contains(key)) {
+                            polygon.setFillColor(authorityColorMap.get(key));
                         }
                     }
                     break;

@@ -3,12 +3,16 @@ package exnihilum.com.au.listdataviewer;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import android.support.graphics.drawable.VectorDrawableCompat;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.content.ContextCompat;
@@ -51,6 +55,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.lang.ref.WeakReference;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.SocketTimeoutException;
@@ -76,22 +81,23 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private boolean isHCCRequest = false;
     private boolean canNavigate;
     private boolean haveSoughtNavigationPermission;
-    private GoogleMap mMap;
+    private static GoogleMap mMap;
     private ArrayList<LayerType> layers = ParametersHelper.layerTypes();
-    private String geometryType;
-    private String finalRequestString;
+    private static String geometryType;
+    private static String finalRequestString;
     private String PARAM1;
     private String PARAM2;
     private String PARAM3;
     private String PARAM4;
     LayerType selectedType = null;
-    private boolean canMakeServerRequest = true;
+    private static boolean canMakeServerRequest = true;
     private ProgressBar progressBar;
     private LatLng initialPosition;
+    private static LatLng currentPosition;
     private float ZOOM_LEVEL = 17;
     private TextView callout;
 
-    private String layerName;
+    private static String layerName;
     private boolean hasSecondLayer = false;
     private String server;
     private String mapValue = "";
@@ -108,13 +114,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private ImageView menuButton;
     private View sliderBackground;
     private boolean isMenuShowing = false;
-    private int alphaValue;
+    private static int alphaValue;
+    private static Drawable drawable;
 
     // polygon list, needs global access
-    private ArrayList<Polygon> polygonList = null;
+    private static ArrayList<Polygon> polygonList = null;
 
     // arraylist for markers
-    ArrayList<Marker> markers = new ArrayList<>();
+    private static ArrayList<Marker> markers = new ArrayList<>();
 
     /**
      * URL to query
@@ -124,6 +131,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
+
+        drawable = VectorDrawableCompat.create(getResources(), R.drawable.ic_my_location_black_24px, null);
 
         // find and hide views
         callout = (TextView) findViewById(R.id.text_callout);
@@ -254,7 +263,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             @Override
             public void onLocationResult(LocationResult locationResult) {
                 for (Location location : locationResult.getLocations()) {
-                    LatLng currentPosition = new LatLng(location.getLatitude(), location.getLongitude());
+                    currentPosition = new LatLng(location.getLatitude(), location.getLongitude());
                     float[] results = new float[3];
                     Location.distanceBetween(
                             currentPosition.latitude,
@@ -262,7 +271,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                             initialPosition.latitude,
                             initialPosition.longitude,
                             results);
-                    if (results[0] > 100.0 && canMakeServerRequest && mRequestingLocationUpdates) {
+                    if (results[0] > 50.0 && canMakeServerRequest && mRequestingLocationUpdates) {
                         initialPosition = currentPosition;
                         // save to shared preferences
                         SharedPreferences.Editor prefEditor =
@@ -295,7 +304,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private void chooseTaskAndExecute() {
-        LISTMapAsyncTask task = new LISTMapAsyncTask();
+        LISTMapAsyncTask task = new LISTMapAsyncTask(this);
         task.execute();
     }
 
@@ -496,7 +505,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
      * {@link AsyncTask} to perform the network request on a background thread, and then
      * DO THE THINGS
      */
-    private class LISTMapAsyncTask extends AsyncTask<URL, Void, ArrayList<JSONPolyfeature>> {
+    private static class LISTMapAsyncTask extends AsyncTask<URL, Void, ArrayList<JSONPolyfeature>> {
+
+        private WeakReference<MapsActivity> activityReference;
+
+        // only retain a weak reference to the activity
+        LISTMapAsyncTask(MapsActivity context) {
+            activityReference = new WeakReference<>(context);
+        }
 
         @Override
         protected ArrayList<JSONPolyfeature> doInBackground(URL... urls) {
@@ -512,23 +528,28 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 // TODO Handle the IOException
             }
 
-            return extractPolyFromJson(jsonResponse);
+            return activityReference.get().extractPolyFromJson(jsonResponse);
         }
 
         /**
          */
         @Override
         protected void onPostExecute(ArrayList<JSONPolyfeature> featureList) {
+
+            // get a reference to the activity if it is still there
+            MapsActivity activity = activityReference.get();
+            if (activity == null || activity.isFinishing()) return;
+
             if (featureList == null) {
-                Toast.makeText(getBaseContext(), "There was a problem with the server request",
+                Toast.makeText(activityReference.get().getBaseContext(), "There was a problem with the server request",
                         Toast.LENGTH_SHORT).show();
-                progressBar.setVisibility(View.INVISIBLE);
+                activityReference.get().progressBar.setVisibility(View.INVISIBLE);
                 canMakeServerRequest = true;
                 return;
             }
             int collectionCount = featureList.size();
             if (collectionCount == 0) {
-                Toast.makeText(getBaseContext(), "No results for this view", Toast.LENGTH_SHORT).show();
+                Toast.makeText(activityReference.get().getBaseContext(), "No results for this view", Toast.LENGTH_SHORT).show();
             }
 
             switch (geometryType) {
@@ -562,9 +583,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                             }
                             polygon1.setStrokeWidth(7);
                             if (polygon1.getTag() != null) {
-                                callout.setText(polygon1.getTag().toString());
+                                activityReference.get().callout.setText(polygon1.getTag().toString());
                             }
-                            callout.setVisibility(View.VISIBLE);
+                            activityReference.get().callout.setVisibility(View.VISIBLE);
                         });
                     }
                     polygonList = polyFeatures; // keep a copy of it
@@ -589,9 +610,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                             }
                             polyline1.setWidth(7);
                             if (polyline1.getTag() != null) {
-                                callout.setText(polyline1.getTag().toString());
+                                activityReference.get().callout.setText(polyline1.getTag().toString());
                             }
-                            callout.setVisibility(View.VISIBLE);
+                            activityReference.get().callout.setVisibility(View.VISIBLE);
                         });
                     }
                     break;
@@ -609,10 +630,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     }
                     break;
             }
+
+            // add current location to map - if known
+            if (currentPosition != null) {
+                Bitmap icon = getBitmapFromDrawable();
+                MarkerOptions markerOptions = new MarkerOptions()
+                        .position(currentPosition)
+                        .icon(BitmapDescriptorFactory.fromBitmap(icon))
+                        .title("Current Position");
+                Marker mMarker = mMap.addMarker(markerOptions);
+            }
+
             // make links clickable, hopefully
-            callout.setAutoLinkMask(Linkify.WEB_URLS);
+            activityReference.get().callout.setAutoLinkMask(Linkify.WEB_URLS);
             canMakeServerRequest = true;
-            progressBar.setVisibility(View.INVISIBLE);
+            activityReference.get().progressBar.setVisibility(View.INVISIBLE);
         }
 
         private void doPolygonStyling(String tag, Polygon polygon) {
@@ -691,7 +723,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 if (responseCode != 200) {
                     // invalid response
                     Log.i(LOG_TAG + " http response code", String.valueOf(responseCode));
-                    Toast.makeText(getApplicationContext(),
+                    Toast.makeText(activityReference.get().getBaseContext(),
                             "A problem has occurred with the server, please try again later",
                             Toast.LENGTH_SHORT).show();
                     return jsonResponse;
@@ -700,12 +732,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 jsonResponse = readFromStream(inputStream);
             } catch (SocketTimeoutException e) {
                 Log.e(LOG_TAG, e.getLocalizedMessage());
-                Toast.makeText(getApplicationContext(),
+                Toast.makeText(activityReference.get().getBaseContext(),
                         "The server timed out, please try again later", Toast.LENGTH_SHORT).show();
                 return jsonResponse;
             } catch (IOException e) {
                 Log.e(LOG_TAG, e.getLocalizedMessage());
-                Toast.makeText(getApplicationContext(),
+                Toast.makeText(activityReference.get().getBaseContext(),
                         "An error occurred, please try again later", Toast.LENGTH_SHORT).show();
                 return jsonResponse;
             } finally {
@@ -1042,6 +1074,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         if (!haveSoughtNavigationPermission && canNavigate) {
             checkLocationPermission();
         }
+    }
+
+    // code to get bitmap from SVG file
+    // http://stackoverflow.com/questions/33696488/getting-bitmap-from-vector-drawable
+    private static Bitmap getBitmapFromDrawable() {
+        if (drawable != null) {
+            Bitmap bitmap = Bitmap.createBitmap(drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
+            Canvas canvas = new Canvas(bitmap);
+            drawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
+            drawable.draw(canvas);
+            return bitmap;
+        }
+        return null;
     }
 
     // location permission code

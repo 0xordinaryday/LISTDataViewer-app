@@ -2,7 +2,6 @@ package exnihilum.com.au.listdataviewer;
 
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
@@ -10,8 +9,6 @@ import android.graphics.drawable.Drawable;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Bundle;
-import android.preference.PreferenceManager;
-import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.view.Menu;
@@ -163,6 +160,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         return activeNetwork != null && activeNetwork.isConnectedOrConnecting();
     }
 
+
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
@@ -182,9 +180,9 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
-            case R.id.action_settings:
-                showNavigationConfirmationDialog();
-                return true;
+            //case R.id.action_settings:
+            //    showNavigationConfirmationDialog();
+            //    return true;
 
             case R.id.action_about:
                 Intent intent = new Intent(MainActivity.this, AboutActivity.class);
@@ -199,6 +197,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         }
     }
 
+    /*
     private void showNavigationConfirmationDialog() {
         // Create an AlertDialog.Builder and set the message, and click listeners
         // for the positive and negative buttons on the dialog.
@@ -221,7 +220,8 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         // Create and show the AlertDialog
         AlertDialog alertDialog = builder.create();
         alertDialog.show();
-    }
+    } */
+
 
 
 }

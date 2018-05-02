@@ -16,6 +16,10 @@
     <string name="use_location_heading">Use Device Location?</string>
     <string name="yes">Yes</string>
     <string name="no">No</string>
+    <string name="permission_rationale">Location permission is needed for core functionality</string>
+    <string name="permission_denied_explanation">Permission was denied, but is needed for core
+        functionality.</string>
+    <string name="settings">Settings</string>
 
     <!-- about page stuff -->
     <string name="about_page_description" translatable="false">blah blah</string>
@@ -29,6 +33,7 @@
     <string name="copy_right">Copyrights © %1$d</string>
 
     <string name="opacitySlider">Opacity</string>
+    <string name="locationSetting">Use Location?</string>
 
     <string name="about_spiel">This app displays data from The LIST (Land Information System Tasmania),
         see <a href="https://www.thelist.tas.gov.au/app/content/home">here</a>. Specifically, the app

@@ -56,6 +56,9 @@
         LIST data is generally subject to Creative Commons 3 (or attribution) licencing. \n\n
 
         Queries regarding LISTData Viewer can be directed to the creator via the link below.
+
+        Note: coordinate conversion from latitude/longitude to UTM should be accurate to within about
+        1m.
     </string>
     <!-- end about -->
 

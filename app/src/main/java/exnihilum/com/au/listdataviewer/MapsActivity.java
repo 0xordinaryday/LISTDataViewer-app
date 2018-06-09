@@ -80,6 +80,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 
 import Utilities.ColorMappingHelper;
+import Utilities.CoordinateConversion;
 import Utilities.ParametersHelper;
 
 import static exnihilum.com.au.listdataviewer.R.id.map;
@@ -159,12 +160,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private SeekBar opacitySlider;
     private TextView opacityText;
     private TextView locationText;
+    private TextView coordinatesText;
     private ImageView menuButton;
     private View sliderBackground;
     private View locationBackground;
     private View spacer;
     private RadioGroup radioGroup;
     private boolean isMenuShowing = false;
+    private static CoordinateConversion mCoordinateConversion;
 
     // your location
     private static Marker mMarker;
@@ -208,6 +211,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         spacer = findViewById(R.id.spacer);
         locationBackground = findViewById(R.id.locationBackground);
         radioGroup = (RadioGroup) findViewById(R.id.radioGroup);
+        coordinatesText = (TextView) findViewById(R.id.coords_callout);
 
         opacitySlider.setVisibility(View.INVISIBLE);
         opacityText.setVisibility(View.INVISIBLE);
@@ -216,6 +220,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         locationText.setVisibility(View.INVISIBLE);
         radioGroup.setVisibility(View.INVISIBLE);
         spacer.setVisibility(View.INVISIBLE);
+        coordinatesText.setVisibility(View.INVISIBLE);
         menuButton.setColorFilter(Color.BLACK);
 
         // set onClick for menu button
@@ -353,10 +358,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mSettingsClient = LocationServices.getSettingsClient(this);
 
         // Kick off the process of building the LocationCallback, LocationRequest, and
-        // LocationSettingsRequest objects.
+        // LocationSettingsRequest objects, and create an instance of coordinate conversion
         createLocationCallback();
         createLocationRequest();
         buildLocationSettingsRequest();
+        mCoordinateConversion = new CoordinateConversion();
 
         chooseTaskAndExecute();
         progressBar.setVisibility(View.VISIBLE);
@@ -449,6 +455,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             public void onLocationResult(LocationResult locationResult) {
                 super.onLocationResult(locationResult);
                 mCurrentLocation = locationResult.getLastLocation();
+                // add coordinates to screen
+                String UTMcoords = "Position is: " + mCoordinateConversion.latLon2UTM(mCurrentLocation.getLatitude(), mCurrentLocation.getLongitude());
+                coordinatesText.setText(UTMcoords);
+                coordinatesText.setVisibility(View.VISIBLE);
                 updateLocationUI();
             }
         };
@@ -594,6 +604,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .addOnCompleteListener(this, new OnCompleteListener<Void>() {
                     @Override
                     public void onComplete(@NonNull Task<Void> task) {
+                        coordinatesText.setVisibility(View.INVISIBLE);
                         mRequestingLocationUpdates = false;
                     }
                 });

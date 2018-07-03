@@ -41,6 +41,15 @@ public class ColorMappingHelper {
         return planningOnlineColorMap;
     }
 
+    public static HashMap<String, Integer> makeLandslideHazardColorMap(int alphaValue) {
+        HashMap<String, Integer> landslideHazardColorMap = new HashMap<>();
+        landslideHazardColorMap.put("Low", Color.argb(alphaValue, 255, 255, 115));
+        landslideHazardColorMap.put("Medium", Color.argb(alphaValue, 230, 152, 0));
+        landslideHazardColorMap.put("Medium - Active", Color.argb(alphaValue, 223, 115, 255));
+        landslideHazardColorMap.put("High", Color.argb(alphaValue, 168, 0, 0));
+        return landslideHazardColorMap;
+    }
+
     public static HashMap<String, Integer> makeAuthorityColorMap(int alphaValue) {
         HashMap<String, Integer> authorityColorMap = new HashMap<>();
         authorityColorMap.put("ABT Railway Ministerial Corp", Color.argb(alphaValue, 122, 179, 121));

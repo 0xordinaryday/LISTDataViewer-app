@@ -1368,6 +1368,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         }
                     }
                     break;
+                case "Landslide Planning Map – Hazard Bands 20131022":
+                    HashMap<String, Integer> landslideColorMap = ColorMappingHelper.makeLandslideHazardColorMap(alphaValue);
+                    for (String key : landslideColorMap.keySet()) {
+                        if (tag.contains(key)) {
+                            polygon.setFillColor(landslideColorMap.get(key));
+                        }
+                    }
+                    break;
                 default:
                     polygon.setFillColor(Color.argb(alphaValue, 150, 50, 50));
             }

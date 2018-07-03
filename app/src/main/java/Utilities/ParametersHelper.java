@@ -65,6 +65,7 @@ public class ParametersHelper {
         layers.add(new LayerType("LIST", "GeologicalAndSoils", "Geological Lines 250K", "paths", "15", "TYPE", "LINECODE"));
         layers.add(new LayerType("LIST", "GeologicalAndSoils", "Geological Polygons 250K", "rings", "16", "SYMBOL", "DESCRIPT", "FORMATION", "PERIOD"));
         layers.add(new LayerType("LIST", "GeologicalAndSoils", "Soil Types", "rings", "19", "SOIL_CLASS", "SOIL_CODE", "SOIL_DESC"));
+        layers.add(new LayerType("LIST", "GeologicalAndSoils", "Landslide Planning Map – Hazard Bands 20131022", "rings", "23", "HAZARD_BAND_1", "COMPONENT", "HAZARD_EXPOSURE"));
 
         layers.add(new LayerType("LIST", "OpenDataWFS", "Transport Segments", "paths", "42", "TRANS_TYPE", "TSEG_FEAT"));
 

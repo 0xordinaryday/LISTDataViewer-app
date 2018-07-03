@@ -877,6 +877,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 chooseTaskAndExecute();
             }
         });
+
+        // test lol
+        // TODO - implement this properly
+        // TileProvider wmsTileProvider = TileProviderFactory.getOsgeoWmsTileProvider();
+        // mMap.addTileOverlay(new TileOverlayOptions().tileProvider(wmsTileProvider));
     }
 
     private void addSearchPolygon() {

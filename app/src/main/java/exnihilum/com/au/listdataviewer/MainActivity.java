@@ -36,7 +36,6 @@ import Utilities.ParametersHelper;
 
 public class MainActivity extends AppCompatActivity implements AdapterView.OnItemSelectedListener {
 
-    private boolean userIsInteracting = false;
     private HashMap<String, String> categoryMap;
     ArrayList<LayerType> layers = ParametersHelper.layerTypes();
     Set<String> categories = ParametersHelper.getCategorySet();
@@ -58,6 +57,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         cOLLayerMap = ParametersHelper.makeCOLLayerMap();
         hCCLayerMap = ParametersHelper.makeHCCLayerMap();
 
+        Spinner tileSpinner = (Spinner) findViewById(R.id.tile_spinner);
         Spinner spinnerDetail = (Spinner) findViewById(R.id.layers_spinner);
         Spinner spinnerCategory = (Spinner) findViewById(R.id.category_spinner);
         // Create ArrayAdapters using the string array and a default spinner layout
@@ -74,7 +74,19 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         detailAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         categoryAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
 
-        // Apply the adapter to the spinner
+        // temporarily make a list for the basemap spinner
+        ArrayList<String> basemapLayerList = new ArrayList<>();
+        basemapLayerList.add("None");
+        basemapLayerList.add("Geology");
+        basemapLayerList.add("Landslides");
+        // make an adapter for the basemap spinner and set it
+        ArrayAdapter<String> basemapAdapter =
+                new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, basemapLayerList);
+        basemapAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        tileSpinner.setAdapter(basemapAdapter);
+        tileSpinner.setOnItemSelectedListener(this);
+
+        // Apply the adapters to the spinner
         spinnerDetail.setAdapter(detailAdapter);
         spinnerCategory.setAdapter(categoryAdapter);
         spinnerDetail.setOnItemSelectedListener(this);
@@ -94,6 +106,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         goButton.setOnClickListener(view -> {
                     if (isNetworkAvailable()) {
                         String item = spinnerDetail.getSelectedItem().toString();
+                        String baseMap = tileSpinner.getSelectedItem().toString();
                         for (LayerType type : layers) {
                             if (type.isNameEqualTo(item)) {
                                 Intent intent = new Intent(getApplicationContext(), MapsActivity.class);
@@ -101,19 +114,23 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
                                     case "COL":
                                         intent.putExtra("layerName", cOLLayerMap.get(item));
                                         intent.putExtra("server", "COL");
+                                        intent.putExtra("base", baseMap);
                                         break;
                                     case "MRT":
                                         intent.putExtra("layerName", geologyLayerMap.get(item));
                                         intent.putExtra("server", "MRT");
+                                        intent.putExtra("base", baseMap);
                                         break;
                                     case "HCC":
                                         intent.putExtra("layerName", item);
                                         intent.putExtra("mapValue", hCCLayerMap.get(item));
                                         intent.putExtra("server", "HCC");
+                                        intent.putExtra("base", baseMap);
                                         break;
                                     default:
                                         intent.putExtra("layerName", type.getLayerName());
                                         intent.putExtra("server", "LIST");
+                                        intent.putExtra("base", baseMap);
                                         break;
                                 }
                                 startActivity(intent);
@@ -196,32 +213,4 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
                 return super.onOptionsItemSelected(item);
         }
     }
-
-    /*
-    private void showNavigationConfirmationDialog() {
-        // Create an AlertDialog.Builder and set the message, and click listeners
-        // for the positive and negative buttons on the dialog.
-        SharedPreferences.Editor prefEditor =
-                PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).edit();
-
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setMessage(R.string.use_location_heading);
-        builder.setPositiveButton(R.string.yes, (dialog, id) -> {
-            // User clicked Yes, so use navigation
-            prefEditor.putBoolean("canNavigate", true);
-            prefEditor.apply();
-        });
-        builder.setNegativeButton(R.string.no, (dialog, id) -> {
-            // User clicked No, so don't use navigation
-            prefEditor.putBoolean("canNavigate", false);
-            prefEditor.apply();
-        });
-
-        // Create and show the AlertDialog
-        AlertDialog alertDialog = builder.create();
-        alertDialog.show();
-    } */
-
-
-
 }

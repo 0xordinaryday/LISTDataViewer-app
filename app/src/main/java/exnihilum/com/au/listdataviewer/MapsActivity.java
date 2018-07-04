@@ -160,6 +160,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private TextView callout;
     private boolean hasSecondLayer = false;
     private String mapValue = "";
+    private String baseMap = "None";
     private SeekBar opacitySlider;
     private TextView opacityText;
     private TextView locationText;
@@ -316,6 +317,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         layerName = createIntent.getStringExtra("layerName");
         String server = createIntent.getStringExtra("server");
         mapValue = createIntent.getStringExtra("mapValue");
+        baseMap = createIntent.getStringExtra("base");
+        Log.i(TAG, baseMap);
 
         switch (server) {
             case "MRT":
@@ -852,10 +855,31 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         // add tile overlay
         // test lol
         // TODO - implement this properly
-        TileProvider wmsTileProvider = TileProviderFactory.getOsgeoWmsTileProvider();
-        TileOverlayOptions tileOverlay = new TileOverlayOptions()
-                .tileProvider(wmsTileProvider);
-        mMap.addTileOverlay(tileOverlay);
+        TileProvider wmsTileProvider;
+        final TileOverlayOptions tileOverlay;
+
+        switch (baseMap) {
+            case "None":
+                tileOverlay = null;
+                break;
+            case "Geology":
+                wmsTileProvider = TileProviderFactory.getOsgeoWmsTileProvider("All_Tasmania_tas_geology25k.ecw");
+                tileOverlay = new TileOverlayOptions().tileProvider(wmsTileProvider);
+                break;
+            case "Landslides":
+                wmsTileProvider = TileProviderFactory.getOsgeoWmsTileProvider("Geotechnical_landslide_slide.ecw");
+                tileOverlay = new TileOverlayOptions().tileProvider(wmsTileProvider);
+                break;
+            default:
+                tileOverlay = null;
+                break;
+        }
+
+        // "All_Tasmania_tas_geology25k.ecw" +
+        // "Geotechnical_landslide_slide.ecw" +
+        if (tileOverlay != null) {
+            mMap.addTileOverlay(tileOverlay);
+        }
 
         mMap.setOnCameraMoveListener(() -> callout.setVisibility(View.INVISIBLE));
 
@@ -879,7 +903,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 mMap.clear();
                 addSearchPolygon();
                 // redraw tiles after clear
-                mMap.addTileOverlay(tileOverlay);
+                if (tileOverlay != null) {
+                    mMap.addTileOverlay(tileOverlay);
+                }
                 if (!isGeologyRequest) {
                     finalRequestString = generateString(selectedType, generateEnvelope());
                 } else {

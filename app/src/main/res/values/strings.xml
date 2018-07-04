@@ -1,6 +1,7 @@
 <resources>
     <string name="app_name">LISTData Viewer</string>
     <string name="title_activity_maps">Map</string>
+    <string name="tile_heading">Choose a basemap (if desired)</string>
     <string name="spinner_heading">Choose a dataset to view</string>
     <string name="category_heading">Choose a category of data to view</string>
     <string name="geology_heading">MRT Web Services Data</string>

@@ -20,7 +20,8 @@ public class TileProviderFactory {
                 "http://www.mrt.tas.gov.au/erdas-iws/ogc/wms/" +
                         "?TRANSPARENT=TRUE" +
                         "&OPACITY=1" +
-                        "&LAYERS=Geotechnical_landslide_slide.ecw" +
+                        "&layers=All_Tasmania_tas_geology25k.ecw" +
+                        // "&LAYERS=Geotechnical_landslide_slide.ecw" +
                         "&VERSION=1.1.1" +
                         "&SERVICE=WMS" +
                         "&REQUEST=GetMap" +

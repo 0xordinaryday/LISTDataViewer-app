@@ -57,6 +57,8 @@ import com.google.android.gms.maps.model.Polygon;
 import com.google.android.gms.maps.model.PolygonOptions;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
+import com.google.android.gms.maps.model.TileOverlayOptions;
+import com.google.android.gms.maps.model.TileProvider;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.maps.android.SphericalUtil;
@@ -82,6 +84,7 @@ import java.util.HashMap;
 import Utilities.ColorMappingHelper;
 import Utilities.CoordinateConversion;
 import Utilities.ParametersHelper;
+import Utilities.TileProviderFactory;
 
 import static exnihilum.com.au.listdataviewer.R.id.map;
 
@@ -846,6 +849,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         // show search polygon
         addSearchPolygon();
 
+        // add tile overlay
+        // test lol
+        // TODO - implement this properly
+        TileProvider wmsTileProvider = TileProviderFactory.getOsgeoWmsTileProvider();
+        TileOverlayOptions tileOverlay = new TileOverlayOptions()
+                .tileProvider(wmsTileProvider);
+        mMap.addTileOverlay(tileOverlay);
+
         mMap.setOnCameraMoveListener(() -> callout.setVisibility(View.INVISIBLE));
 
         // set camera move listener
@@ -867,6 +878,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 initialPosition = newLocation;
                 mMap.clear();
                 addSearchPolygon();
+                // redraw tiles after clear
+                mMap.addTileOverlay(tileOverlay);
                 if (!isGeologyRequest) {
                     finalRequestString = generateString(selectedType, generateEnvelope());
                 } else {
@@ -878,10 +891,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
         });
 
-        // test lol
-        // TODO - implement this properly
-        // TileProvider wmsTileProvider = TileProviderFactory.getOsgeoWmsTileProvider();
-        // mMap.addTileOverlay(new TileOverlayOptions().tileProvider(wmsTileProvider));
     }
 
     private void addSearchPolygon() {
@@ -1258,6 +1267,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         Polygon polygon = mMap.addPolygon(rectOptions);
                         final String tag = jsonPolygon.getName();
                         polygon.setPoints(jsonPolygon.getGeometry());
+                        // set z index
+                        polygon.setZIndex(1000);
                         if (jsonPolygon.hasHoles()) {
                             polygon.setHoles(jsonPolygon.getHoles());
                         }
@@ -1291,6 +1302,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                         new LatLng(37.45, -122.0));
                         // Get back the mutable Polyline
                         Polyline polyline = mMap.addPolyline(polyOptions);
+                        // set z index so it sits above the tile overlay
+                        polyline.setZIndex(1000);
                         final String tag = jsonPolyline.getName();
                         polyline.setPoints(jsonPolyline.getGeometry());
                         polyline.setTag(tag);

@@ -571,7 +571,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 prefEditor.putString("lon", String.valueOf(currentPosition.longitude));
                 prefEditor.apply();
                 mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(currentPosition, currentZoom));
-                mMap.clear();
+                // mMap.clear();
                 if (!isGeologyRequest) {
                     finalRequestString = generateString(selectedType, generateEnvelope());
                 } else {
@@ -843,6 +843,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
+        // set max zoom as a test for ortho zoom limits
+        mMap.setMaxZoomPreference(18.9f);
 
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(initialPosition, ZOOM_LEVEL));
 
@@ -878,6 +880,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         // "All_Tasmania_tas_geology25k.ecw" +
         // "Geotechnical_landslide_slide.ecw" +
         if (tileOverlay != null) {
+            mMap.setMapType(GoogleMap.MAP_TYPE_NONE);
             mMap.addTileOverlay(tileOverlay);
         }
 
@@ -886,6 +889,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         // set camera move listener
         mMap.setOnCameraIdleListener(() -> {
             LatLng newLocation = mMap.getCameraPosition().target;
+            // debug
+            Log.i(TAG, String.valueOf(mMap.getCameraPosition().zoom));
             float[] results = new float[3];
             Location.distanceBetween(
                     newLocation.latitude,

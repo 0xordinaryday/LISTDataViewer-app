@@ -90,11 +90,6 @@ import static exnihilum.com.au.listdataviewer.R.id.map;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, GoogleMap.OnMarkerClickListener {
 
-    /**
-     * Tag for the log messages
-     */
-    public static final String LOG_TAG = MapsActivity.class.getSimpleName();
-    // refactor
     private static final String TAG = MapsActivity.class.getSimpleName();
     // Code used in requesting runtime permissions.
     private static final int REQUEST_PERMISSIONS_REQUEST_CODE = 34;
@@ -119,7 +114,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private static LatLng currentPosition;
     private static String layerName;
     private static int alphaValue;
-    // end refactor
     private static Drawable drawable;
     // polygon list, needs global access
     private static ArrayList<Polygon> polygonList = null;
@@ -158,7 +152,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private LatLng initialPosition;
     private float ZOOM_LEVEL = 17;
     private TextView callout;
-    private boolean hasSecondLayer = false;
     private String mapValue = "";
     private String baseMap = "None";
     private SeekBar opacitySlider;
@@ -172,6 +165,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private RadioGroup radioGroup;
     private boolean isMenuShowing = false;
     private static CoordinateConversion mCoordinateConversion;
+
+    private final static String[] LISTbase = {"Hillshade Grey", "Hillshade Coloured", "LIST Topographic"};
 
     // your location
     private static Marker mMarker;
@@ -265,6 +260,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         String lonString = prefs.getString("lon", "147.138470");
         alphaValue = prefs.getInt("alpha", 100);
         ZOOM_LEVEL = prefs.getFloat("zoom", 17);
+        // zoom back to 17 if zoomed in more
+        if (ZOOM_LEVEL > 17.0) {
+            ZOOM_LEVEL = 17.0f;
+        }
         initialPosition = new LatLng(Double.valueOf(latString), Double.valueOf(lonString));
 
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
@@ -346,7 +345,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         if (!isGeologyRequest) {
             finalRequestString = generateString(selectedType, envelopeArray);
-            Log.i(LOG_TAG, finalRequestString);
+            Log.i(TAG, finalRequestString);
             geometryType = selectedType.getGeometryType(); // rings, paths or none
         } else if (isGeologyRequest && geologyPointRequests.contains(layerName)) {
             geometryType = "none";
@@ -843,9 +842,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
-        // set max zoom as a test for ortho zoom limits
-        mMap.setMaxZoomPreference(18.9f);
-
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(initialPosition, ZOOM_LEVEL));
 
         // Set a listener for marker click.
@@ -855,34 +851,23 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         addSearchPolygon();
 
         // add tile overlay
-        // test lol
-        // TODO - implement this properly
         TileProvider wmsTileProvider;
         final TileOverlayOptions tileOverlay;
 
         switch (baseMap) {
-            case "None":
+            case "Default Google":
                 tileOverlay = null;
                 break;
-            case "Geology":
-                wmsTileProvider = TileProviderFactory.getOsgeoWmsTileProvider("All_Tasmania_tas_geology25k.ecw");
-                tileOverlay = new TileOverlayOptions().tileProvider(wmsTileProvider);
-                break;
-            case "Landslides":
-                wmsTileProvider = TileProviderFactory.getOsgeoWmsTileProvider("Geotechnical_landslide_slide.ecw");
-                tileOverlay = new TileOverlayOptions().tileProvider(wmsTileProvider);
+            case "":
+                tileOverlay = null;
                 break;
             default:
-                tileOverlay = null;
+                wmsTileProvider = TileProviderFactory.getOsgeoWmsTileProvider(baseMap);
+                tileOverlay = new TileOverlayOptions().tileProvider(wmsTileProvider);
                 break;
         }
 
-        // "All_Tasmania_tas_geology25k.ecw" +
-        // "Geotechnical_landslide_slide.ecw" +
-        if (tileOverlay != null) {
-            mMap.setMapType(GoogleMap.MAP_TYPE_NONE);
-            mMap.addTileOverlay(tileOverlay);
-        }
+        addTiles(tileOverlay);
 
         mMap.setOnCameraMoveListener(() -> callout.setVisibility(View.INVISIBLE));
 
@@ -908,20 +893,36 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 mMap.clear();
                 addSearchPolygon();
                 // redraw tiles after clear
-                if (tileOverlay != null) {
-                    mMap.addTileOverlay(tileOverlay);
-                }
+                addTiles(tileOverlay);
                 if (!isGeologyRequest) {
                     finalRequestString = generateString(selectedType, generateEnvelope());
                 } else {
                     finalRequestString = makeGeologyString(layerName, generateEnvelope());
                 }
-                Log.i(LOG_TAG, finalRequestString);
+                Log.i(TAG, finalRequestString);
                 // make new server request
                 chooseTaskAndExecute();
             }
         });
 
+    }
+
+    private void addTiles(TileOverlayOptions tileOverlay) {
+        if (tileOverlay != null) {
+            mMap.setMapType(GoogleMap.MAP_TYPE_NONE);
+            mMap.addTileOverlay(tileOverlay);
+            if (baseMap.equals("State Orthophoto Composite")) {
+                // orthophoto has max zoom level of 19
+                mMap.setMaxZoomPreference(19.9f);
+            } else {
+                for (String str : LISTbase) {
+                    if (str.equals(baseMap)) {
+                        // other tiled layers have max zoom level of 18
+                        mMap.setMaxZoomPreference(18.9f);
+                    }
+                }
+            }
+        }
     }
 
     private void addSearchPolygon() {
@@ -1018,7 +1019,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                     LatLng toAppend = new LatLng(Lat, Lon);
                                     newGeometryList.add(toAppend);
                                 } catch (NullPointerException e) {
-                                    Log.i(LOG_TAG, "value was null");
+                                    Log.i(TAG, "value was null");
                                 }
                             }
                             // set the geometry list to the object
@@ -1071,7 +1072,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
             return featureList;
         } catch (JSONException e) {
-            Log.e(LOG_TAG, "Problem parsing the JSON results", e);
+            Log.e(TAG, "Problem parsing the JSON results", e);
         }
         return null;
     }
@@ -1193,17 +1194,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 return param1out + "\n" + param2out + "\n" + param3out + "\n" + param4out;
             }
         } catch (JSONException e) {
-            Log.e(LOG_TAG, e.getLocalizedMessage());
+            Log.e(TAG, e.getLocalizedMessage());
         }
         return null;
-    }
-
-    private void addSecondLayer() {
-        hasSecondLayer = true;
-        SharedPreferences.Editor prefEditor =
-                PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).edit();
-        prefEditor.putString("firstLayer", layerName);
-        prefEditor.apply();
     }
 
     private void setLastLocation() {
@@ -1217,22 +1210,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         prefEditor.apply();
     }
 
-    private void blankSecondLayer() {
-        SharedPreferences.Editor prefEditor =
-                PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).edit();
-        prefEditor.remove("firstLayer");
-        prefEditor.apply();
-        hasSecondLayer = false;
-    }
-
-
     @Override
     protected void onStop() {
         super.onStop();
         setLastLocation();
-        if (!hasSecondLayer) {
-            blankSecondLayer();
-        }
         stopLocationUpdates();
     }
 
@@ -1438,7 +1419,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             try {
                 url = new URL(stringUrl);
             } catch (MalformedURLException exception) {
-                Log.e(LOG_TAG, "Error with creating URL", exception);
+                Log.e(TAG, "Error with creating URL", exception);
                 return null;
             }
             return url;
@@ -1467,7 +1448,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 int responseCode = urlConnection.getResponseCode();
                 if (responseCode != 200) {
                     // invalid response
-                    Log.i(LOG_TAG + " http response code", String.valueOf(responseCode));
+                    Log.i(TAG + " http response code", String.valueOf(responseCode));
                     Toast.makeText(activityReference.get().getBaseContext(),
                             "A problem has occurred with the server, please try again later",
                             Toast.LENGTH_SHORT).show();
@@ -1476,12 +1457,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 inputStream = urlConnection.getInputStream();
                 jsonResponse = readFromStream(inputStream);
             } catch (SocketTimeoutException e) {
-                Log.e(LOG_TAG, e.getLocalizedMessage());
+                Log.e(TAG, e.getLocalizedMessage());
                 Toast.makeText(activityReference.get().getBaseContext(),
                         "The server timed out, please try again later", Toast.LENGTH_SHORT).show();
                 return jsonResponse;
             } catch (IOException e) {
-                Log.e(LOG_TAG, e.getLocalizedMessage());
+                Log.e(TAG, e.getLocalizedMessage());
                 Toast.makeText(activityReference.get().getBaseContext(),
                         "An error occurred, please try again later", Toast.LENGTH_SHORT).show();
                 return jsonResponse;

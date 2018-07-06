@@ -76,9 +76,15 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
 
         // temporarily make a list for the basemap spinner
         ArrayList<String> basemapLayerList = new ArrayList<>();
-        basemapLayerList.add("None");
-        basemapLayerList.add("Geology");
-        basemapLayerList.add("Landslides");
+        basemapLayerList.add("Default Google"); // Default Google Maps Base
+        basemapLayerList.add("State Orthophoto Composite");
+        basemapLayerList.add("Hillshade Grey");
+        basemapLayerList.add("Hillshade Coloured");
+        basemapLayerList.add("LIST Topographic");
+        basemapLayerList.add("Geology, 25k Scale");
+        basemapLayerList.add("Geology, 250k Scale");
+        basemapLayerList.add("MRT Landslide Susceptibility");
+        basemapLayerList.add("MRT Landslide Geomorphology");
         // make an adapter for the basemap spinner and set it
         ArrayAdapter<String> basemapAdapter =
                 new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, basemapLayerList);

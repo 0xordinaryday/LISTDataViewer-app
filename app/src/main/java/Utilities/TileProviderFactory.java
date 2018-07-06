@@ -40,8 +40,11 @@ public class TileProviderFactory {
                 isLISTbase = false;
             }
         }
-        if (!isMRTbase) {
-            isLISTbase = true;
+        for (String str:LISTbase) {
+            if (str.equals(layerName)) {
+                isMRTbase = false;
+                isLISTbase = true;
+            }
         }
 
         String WMS_FORMAT_STRING;

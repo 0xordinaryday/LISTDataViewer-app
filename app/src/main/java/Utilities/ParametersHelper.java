@@ -71,7 +71,6 @@ public class ParametersHelper {
 
         layers.add(new LayerType("LIST", "Infrastructure", "TasWater Sewer Serviced Land", "rings", "0", "SERVICETYPE", "DESCRIPTION", "DATEOFISSUE"));
         layers.add(new LayerType("LIST", "Infrastructure", "TasWater Water Serviced Land", "rings", "1", "SERVICETYPE", "DESCRIPTION", "DATEOFISSUE"));
-        layers.add(new LayerType("LIST", "Infrastructure", "TasWater Pressure Exclusion Boundary", "rings", "7", "OBJECTID", "DESCRIPTION"));
         layers.add(new LayerType("LIST", "Infrastructure", "TasWater Water Hydrant", "none", "2", "OBJECTID", "ASSETID"));
         layers.add(new LayerType("LIST", "Infrastructure", "TasWater Sewer Maintenance Hole", "none", "3", "OBJECTID", "ASSETID"));
         layers.add(new LayerType("LIST", "Infrastructure", "TasWater Water Main", "paths", "4", "DIAMETER", "MATERIAL", "D_MATERIAL", "D_SUBTYPEC"));

@@ -271,7 +271,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .findFragmentById(map);
         mapFragment.getMapAsync(this);
 
-        String[] envelopeArray = generateEnvelope();
+        String[] envelopeArray = generateBoundingBox();
 
         // set progress bar
         progressBar = (ProgressBar) findViewById(R.id.indeterminateBar);
@@ -321,7 +321,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         switch (server) {
             case "MRT":
-                String geologyString = makeGeologyString(layerName, generateEnvelope());
+                String geologyString = makeGeologyString(layerName, generateBoundingBox());
                 isGeologyRequest = true;
                 finalRequestString = geologyString;
                 break;
@@ -572,9 +572,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(currentPosition, currentZoom));
                 // mMap.clear();
                 if (!isGeologyRequest) {
-                    finalRequestString = generateString(selectedType, generateEnvelope());
+                    finalRequestString = generateString(selectedType, generateBoundingBox());
                 } else {
-                    finalRequestString = makeGeologyString(layerName, generateEnvelope());
+                    finalRequestString = makeGeologyString(layerName, generateBoundingBox());
                 }
                 addSearchPolygon();
                 // make new server request
@@ -746,7 +746,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         task.execute();
     }
 
-    private String[] generateEnvelope() {
+    private String[] generateBoundingBox() {
         // build envelope from initialPosition
         double delta;
         if (isGeologyRequest) {
@@ -761,24 +761,16 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         return new String[]{lowerLeftLat, lowerLeftLon, upperRightLat, upperRightLon};
     }
 
-    private String makeGeologyString(String layer, String[] envelope) {
+    private String makeGeologyString(String layer, String[] bbox) {
         String MRT_WEB_SERVICES_PART1 = "http://www.mrt.tas.gov.au/web-services/ows?service=wfs&version=1.1.0&request=GetFeature&typeName=";
         String MRT_WEB_SERVICES_PART2 = "&styles=default&SRS=EPSG:4326&bbox=";
-        String comma = ",";
         String MRT_WEB_SERVICES_PART3 = "&outputFormat=JSON";
 
-        return MRT_WEB_SERVICES_PART1 + layer + MRT_WEB_SERVICES_PART2 +
-                envelope[0] +
-                comma +
-                envelope[1] +
-                comma +
-                envelope[2] +
-                comma +
-                envelope[3] +
-                MRT_WEB_SERVICES_PART3;
+        return MRT_WEB_SERVICES_PART1 + layer + MRT_WEB_SERVICES_PART2 + bbox[0] + "," + bbox[1]
+                + "," + bbox[2] + "," + bbox[3] + MRT_WEB_SERVICES_PART3;
     }
 
-    private String generateString(LayerType type, String[] envelope) {
+    private String generateString(LayerType type, String[] bbox) {
         String separator = "%2C";
         String LIST_REQUEST_URL_PART1;
         String LIST_REQUEST_URL_PART5;
@@ -798,13 +790,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
 
         String LIST_REQUEST_URL_PART3 = "/query?where=&text=&objectIds=&time=&geometry=" +
-                envelope[1] +
-                separator +
-                envelope[0] +
-                separator +
-                envelope[3] +
-                separator +
-                envelope[2] +
+                bbox[1] + "%2C" + bbox[0] + "%2C" + bbox[3] + "%2C" + bbox[2] +
                 "&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects&relationParam=&outFields=";
 
 
@@ -823,17 +809,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             param4String = separator + PARAM4;
         }
 
-        return LIST_REQUEST_URL_PART1 +
-                type.getClassification() +
-                LIST_REQUEST_URL_PART2 +
-                type.getLayerID() +
-                LIST_REQUEST_URL_PART3 +
-                PARAM1 +
-                separator +
-                PARAM2 +
-                param3String +
-                param4String +
-                LIST_REQUEST_URL_PART5;
+        return LIST_REQUEST_URL_PART1 + type.getClassification() + LIST_REQUEST_URL_PART2 +
+                type.getLayerID() + LIST_REQUEST_URL_PART3 + PARAM1 + separator + PARAM2 +
+                param3String + param4String + LIST_REQUEST_URL_PART5;
     }
 
     /**
@@ -895,9 +873,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 // redraw tiles after clear
                 addTiles(tileOverlay);
                 if (!isGeologyRequest) {
-                    finalRequestString = generateString(selectedType, generateEnvelope());
+                    finalRequestString = generateString(selectedType, generateBoundingBox());
                 } else {
-                    finalRequestString = makeGeologyString(layerName, generateEnvelope());
+                    finalRequestString = makeGeologyString(layerName, generateBoundingBox());
                 }
                 Log.i(TAG, finalRequestString);
                 // make new server request
@@ -930,7 +908,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         if (searchWindow != null) {
             searchWindow.remove();
         }
-        String[] points = generateEnvelope();
+        String[] points = generateBoundingBox();
         Double lowerLeftLat = Double.valueOf(points[0]);
         Double lowerLeftLon = Double.valueOf(points[1]);
         Double upperRightLat = Double.valueOf(points[2]);

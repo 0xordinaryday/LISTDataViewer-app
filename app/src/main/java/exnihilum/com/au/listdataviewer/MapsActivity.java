@@ -554,14 +554,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             progressBar.setVisibility(View.INVISIBLE);
             currentPosition = new LatLng(mCurrentLocation.getLatitude(), mCurrentLocation.getLongitude());
 
+            // get the current zoom level, don't rezoom
+            float currentZoom = mMap.getCameraPosition().zoom;
+
             // update the marker if set
             if (mMarker != null) {
                 mMarker.setPosition(currentPosition);
+                mMarker.setVisible(true);
             }
-            addSearchPolygon();
 
-            // get the current zoom level, don't rezoom
-            float currentZoom = mMap.getCameraPosition().zoom;
             float[] results = new float[3];
             Location.distanceBetween(
                     currentPosition.latitude,
@@ -581,6 +582,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 chooseTaskAndExecute();
             }
             initialPosition = currentPosition;
+            // add search after initial position set, because it's used in the calculation
+            addSearchPolygon();
             // save to shared preferences
             SharedPreferences.Editor prefEditor =
                     PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).edit();
@@ -885,9 +888,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 progressBar.setVisibility(View.VISIBLE);
                 initialPosition = newLocation;
                 mMap.clear();
-                if (mMarker != null) {
-                    mMarker = null;
-                }
                 addSearchPolygon();
                 // redraw tiles after clear
                 addTiles(tileOverlay);
@@ -1203,14 +1203,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         prefEditor.putString("lon", String.valueOf(newLocation.longitude));
         prefEditor.putFloat("zoom", currentZoom);
         prefEditor.apply();
+        mMap.clear();
     }
 
     @Override
     protected void onStop() {
         queue.cancelAll("request");
-        if (mMarker != null) {
-            mMarker.remove(); // ditch the marker
-        }
         setLastLocation();
         stopLocationUpdates();
         super.onStop();

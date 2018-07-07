@@ -12,7 +12,6 @@ import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.net.Uri;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Looper;
 import android.preference.PreferenceManager;
@@ -22,7 +21,6 @@ import android.support.design.widget.Snackbar;
 import android.support.graphics.drawable.VectorDrawableCompat;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
-import android.text.TextUtils;
 import android.text.method.LinkMovementMethod;
 import android.text.util.Linkify;
 import android.util.Log;
@@ -35,6 +33,15 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.android.volley.AuthFailureError;
+import com.android.volley.NetworkError;
+import com.android.volley.NoConnectionError;
+import com.android.volley.ParseError;
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.ServerError;
+import com.android.volley.TimeoutError;
+import com.android.volley.toolbox.JsonObjectRequest;
 import com.google.android.gms.common.api.ApiException;
 import com.google.android.gms.common.api.ResolvableApiException;
 import com.google.android.gms.location.FusedLocationProviderClient;
@@ -59,24 +66,12 @@ import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.maps.model.TileOverlayOptions;
 import com.google.android.gms.maps.model.TileProvider;
-import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.Task;
 import com.google.maps.android.SphericalUtil;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.lang.ref.WeakReference;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.SocketTimeoutException;
-import java.net.URL;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -107,6 +102,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private final static String KEY_REQUESTING_LOCATION_UPDATES = "requesting-location-updates";
     private final static String KEY_LOCATION = "location";
     private final static String KEY_LAST_UPDATED_TIME_STRING = "last-updated-time-string";
+    private final static String[] LISTbase = {"Hillshade Grey", "Hillshade Coloured", "LIST Topographic"};
     private static GoogleMap mMap;
     private static String geometryType;
     private static String finalRequestString;
@@ -119,6 +115,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private static ArrayList<Polygon> polygonList = null;
     // arraylist for markers
     private static ArrayList<Marker> markers = new ArrayList<>();
+    private static CoordinateConversion mCoordinateConversion;
+    // your location
+    private static Marker mMarker;
+    // Volley request queue
+    RequestQueue queue;
     LayerType selectedType = null;
     // Provides access to the Fused Location Provider API.
     private FusedLocationProviderClient mFusedLocationClient;
@@ -164,12 +165,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private View spacer;
     private RadioGroup radioGroup;
     private boolean isMenuShowing = false;
-    private static CoordinateConversion mCoordinateConversion;
-
-    private final static String[] LISTbase = {"Hillshade Grey", "Hillshade Coloured", "LIST Topographic"};
-
-    // your location
-    private static Marker mMarker;
     // search window
     private Polygon searchWindow;
 
@@ -198,19 +193,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         drawable = VectorDrawableCompat.create(getResources(), R.drawable.ic_my_location_black_24px, null);
 
         // find and hide views
-        callout = (TextView) findViewById(R.id.text_callout);
+        callout = findViewById(R.id.text_callout);
         callout.setMovementMethod(LinkMovementMethod.getInstance());
         callout.setVisibility(View.INVISIBLE);
 
-        opacityText = (TextView) findViewById(R.id.opacityText);
-        locationText = (TextView) findViewById(R.id.locationText);
-        menuButton = (ImageView) findViewById(R.id.mapMenuButton);
-        opacitySlider = (SeekBar) findViewById(R.id.opacitySlider);
+        opacityText = findViewById(R.id.opacityText);
+        locationText = findViewById(R.id.locationText);
+        menuButton = findViewById(R.id.mapMenuButton);
+        opacitySlider = findViewById(R.id.opacitySlider);
         sliderBackground = findViewById(R.id.sliderBackground);
         spacer = findViewById(R.id.spacer);
         locationBackground = findViewById(R.id.locationBackground);
-        radioGroup = (RadioGroup) findViewById(R.id.radioGroup);
-        coordinatesText = (TextView) findViewById(R.id.coords_callout);
+        radioGroup = findViewById(R.id.radioGroup);
+        coordinatesText = findViewById(R.id.coords_callout);
 
         opacitySlider.setVisibility(View.INVISIBLE);
         opacityText.setVisibility(View.INVISIBLE);
@@ -222,7 +217,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         coordinatesText.setVisibility(View.INVISIBLE);
         menuButton.setColorFilter(Color.BLACK);
 
-        // set onClick for menu button
+        // set onClick for menu buttons
         menuButton.setOnClickListener(view -> {
             if (!isMenuShowing) {
                 opacitySlider.setVisibility(View.VISIBLE);
@@ -233,8 +228,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 radioGroup.setVisibility(View.VISIBLE);
                 spacer.setVisibility(View.VISIBLE);
                 menuButton.setImageResource(android.R.drawable.ic_menu_close_clear_cancel);
-                RadioButton locationOK = (RadioButton) findViewById(R.id.locationOK);
-                RadioButton locationNO = (RadioButton) findViewById(R.id.locationNO);
+                RadioButton locationOK = findViewById(R.id.locationOK);
+                RadioButton locationNO = findViewById(R.id.locationNO);
                 if (mRequestingLocationUpdates) {
                     locationOK.setChecked(true);
                 } else {
@@ -260,10 +255,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         String lonString = prefs.getString("lon", "147.138470");
         alphaValue = prefs.getInt("alpha", 100);
         ZOOM_LEVEL = prefs.getFloat("zoom", 17);
-        // zoom back to 17 if zoomed in more
-        if (ZOOM_LEVEL > 17.0) {
-            ZOOM_LEVEL = 17.0f;
-        }
         initialPosition = new LatLng(Double.valueOf(latString), Double.valueOf(lonString));
 
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
@@ -271,10 +262,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .findFragmentById(map);
         mapFragment.getMapAsync(this);
 
-        String[] envelopeArray = generateBoundingBox();
+        String[] boundingBox = generateBoundingBox();
 
         // set progress bar
-        progressBar = (ProgressBar) findViewById(R.id.indeterminateBar);
+        progressBar = findViewById(R.id.indeterminateBar);
 
         // set opacity slider initial value
         opacitySlider.setProgress(alphaValue);
@@ -317,7 +308,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         String server = createIntent.getStringExtra("server");
         mapValue = createIntent.getStringExtra("mapValue");
         baseMap = createIntent.getStringExtra("base");
-        Log.i(TAG, baseMap);
 
         switch (server) {
             case "MRT":
@@ -344,8 +334,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         ArrayList<String> geologyPointRequests = new ArrayList<>(Arrays.asList("mrtwfs:Boreholes", "mrtwfs:MineralOccurences"));
 
         if (!isGeologyRequest) {
-            finalRequestString = generateString(selectedType, envelopeArray);
-            Log.i(TAG, finalRequestString);
+            finalRequestString = generateString(selectedType, boundingBox);
             geometryType = selectedType.getGeometryType(); // rings, paths or none
         } else if (isGeologyRequest && geologyPointRequests.contains(layerName)) {
             geometryType = "none";
@@ -369,8 +358,20 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         buildLocationSettingsRequest();
         mCoordinateConversion = new CoordinateConversion();
 
+        // gets the Volley request queue
+        queue = getRequestQueue();
+
         chooseTaskAndExecute();
         progressBar.setVisibility(View.VISIBLE);
+    }
+
+    // use method to make sure queue is only instantiated once (singleton)
+    public RequestQueue getRequestQueue() {
+        if (queue == null) {
+            // gets the Volley request queue
+            queue = VolleySingleton.getInstance(this.getApplicationContext()).getRequestQueue();
+        }
+        return queue;
     }
 
     // onclick method for radio button to turn location updating on or off
@@ -383,12 +384,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             case R.id.locationOK:
                 if (checked)
                     startLocationUpdates();
-                    Toast.makeText(this, "Location services will be started", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Location services will be started", Toast.LENGTH_SHORT).show();
                 break;
             case R.id.locationNO:
                 if (checked)
                     stopLocationUpdates();
-                    Toast.makeText(this, "Location will not be used", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Location will not be used", Toast.LENGTH_SHORT).show();
                 break;
         }
     }
@@ -552,6 +553,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             // set progress bar invisible - it will get called visible again shortly if necessary
             progressBar.setVisibility(View.INVISIBLE);
             currentPosition = new LatLng(mCurrentLocation.getLatitude(), mCurrentLocation.getLongitude());
+
+            // update the marker if set
+            if (mMarker != null) {
+                mMarker.setPosition(currentPosition);
+            }
+            addSearchPolygon();
+
             // get the current zoom level, don't rezoom
             float currentZoom = mMap.getCameraPosition().zoom;
             float[] results = new float[3];
@@ -562,36 +570,23 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     initialPosition.longitude,
                     results);
             if (results[0] > 10.0 && canMakeServerRequest) {
-                initialPosition = currentPosition;
-                // save to shared preferences
-                SharedPreferences.Editor prefEditor =
-                        PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).edit();
-                prefEditor.putString("lat", String.valueOf(currentPosition.latitude));
-                prefEditor.putString("lon", String.valueOf(currentPosition.longitude));
-                prefEditor.apply();
                 mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(currentPosition, currentZoom));
-                // mMap.clear();
+
                 if (!isGeologyRequest) {
                     finalRequestString = generateString(selectedType, generateBoundingBox());
                 } else {
                     finalRequestString = makeGeologyString(layerName, generateBoundingBox());
                 }
-                addSearchPolygon();
                 // make new server request
                 chooseTaskAndExecute();
-            } else if (results[0] <= 10.0 && canMakeServerRequest) {
-                initialPosition = currentPosition;
-                // save to shared preferences
-                SharedPreferences.Editor prefEditor =
-                        PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).edit();
-                prefEditor.putString("lat", String.valueOf(currentPosition.latitude));
-                prefEditor.putString("lon", String.valueOf(currentPosition.longitude));
-                prefEditor.apply();
-                if (mMarker != null) {
-                    mMarker.setPosition(currentPosition);
-                }
-                addSearchPolygon();
             }
+            initialPosition = currentPosition;
+            // save to shared preferences
+            SharedPreferences.Editor prefEditor =
+                    PreferenceManager.getDefaultSharedPreferences(getApplicationContext()).edit();
+            prefEditor.putString("lat", String.valueOf(currentPosition.latitude));
+            prefEditor.putString("lon", String.valueOf(currentPosition.longitude));
+            prefEditor.apply();
         }
     }
 
@@ -606,12 +601,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         // Remove location requests if paused or stopped
         mFusedLocationClient.removeLocationUpdates(mLocationCallback)
-                .addOnCompleteListener(this, new OnCompleteListener<Void>() {
-                    @Override
-                    public void onComplete(@NonNull Task<Void> task) {
-                        coordinatesText.setVisibility(View.INVISIBLE);
-                        mRequestingLocationUpdates = false;
-                    }
+                .addOnCompleteListener(this, task -> {
+                    coordinatesText.setVisibility(View.INVISIBLE);
+                    mRequestingLocationUpdates = false;
                 });
     }
 
@@ -742,8 +734,34 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private void chooseTaskAndExecute() {
-        LISTMapAsyncTask task = new LISTMapAsyncTask(this);
-        task.execute();
+        JsonObjectRequest jsonObjectRequest = new JsonObjectRequest
+                (Request.Method.GET, finalRequestString, null, response -> {
+                    ArrayList<JSONPolyfeature> featureList = extractPolyFromJson(response);
+                    processFeatures(featureList);
+                }, error -> {
+                    String message = "";
+                    if (error instanceof TimeoutError || error instanceof NoConnectionError) {
+                        //This indicates that the request has either time out or there is no connection
+                        message = "The request timed out or there is no connection";
+                    } else if (error instanceof AuthFailureError) {
+                        // Error indicating that there was an Authentication Failure while performing the request
+                        message = "There was an Authentication Failure with the server"; // should never happen
+                    } else if (error instanceof ServerError) {
+                        //Indicates that the server responded with a error response
+                        message = "The server gave an error :/";
+                    } else if (error instanceof NetworkError) {
+                        //Indicates that there was network error while performing the request
+                        message = "There was a network error";
+                    } else if (error instanceof ParseError) {
+                        // Indicates that the server response could not be parsed
+                        message = "The server response was incomprehensible";
+                    }
+                    Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+                });
+
+        // Access the RequestQueue through the singleton class.
+        jsonObjectRequest.setTag("request");
+        VolleySingleton.getInstance(this).addToRequestQueue(jsonObjectRequest);
     }
 
     private String[] generateBoundingBox() {
@@ -852,8 +870,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         // set camera move listener
         mMap.setOnCameraIdleListener(() -> {
             LatLng newLocation = mMap.getCameraPosition().target;
-            // debug
-            Log.i(TAG, String.valueOf(mMap.getCameraPosition().zoom));
             float[] results = new float[3];
             Location.distanceBetween(
                     newLocation.latitude,
@@ -869,6 +885,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 progressBar.setVisibility(View.VISIBLE);
                 initialPosition = newLocation;
                 mMap.clear();
+                if (mMarker != null) {
+                    mMarker = null;
+                }
                 addSearchPolygon();
                 // redraw tiles after clear
                 addTiles(tileOverlay);
@@ -877,7 +896,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 } else {
                     finalRequestString = makeGeologyString(layerName, generateBoundingBox());
                 }
-                Log.i(TAG, finalRequestString);
                 // make new server request
                 chooseTaskAndExecute();
             }
@@ -941,20 +959,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     // new version using JSONPolyfeature object
-    private ArrayList<JSONPolyfeature> extractPolyFromJson(String listMapJSON) {
-        if (TextUtils.isEmpty(listMapJSON)) { // checks for null and empty string
+    private ArrayList<JSONPolyfeature> extractPolyFromJson(JSONObject listMapJSON) {
+        /*if (listMapJSON.)) { // checks for null and empty string
             return null;
-        }
+        }*/
         try { // check if there was an error
-            JSONObject baseJsonResponse = new JSONObject(listMapJSON);
-            if (baseJsonResponse.has("error")) {
+            if (listMapJSON.has("error")) {
                 return null;
             }
 
             // setup object to hold data
             ArrayList<JSONPolyfeature> featureList = new ArrayList<>();
 
-            JSONArray featureArray = baseJsonResponse.getJSONArray("features");
+            JSONArray featureArray = listMapJSON.getJSONArray("features");
             int length = featureArray.length();
             for (int i = 0; i < length; i++) {
                 JSONObject attributes = featureArray.getJSONObject(i);
@@ -1190,288 +1207,171 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     @Override
     protected void onStop() {
-        super.onStop();
+        queue.cancelAll("request");
+        if (mMarker != null) {
+            mMarker.remove(); // ditch the marker
+        }
         setLastLocation();
         stopLocationUpdates();
+        super.onStop();
     }
 
-    /**
-     * {@link AsyncTask} to perform the network request on a background thread, and then
-     * DO THE THINGS
-     */
-    private static class LISTMapAsyncTask extends AsyncTask<URL, Void, ArrayList<JSONPolyfeature>> {
+    protected void processFeatures(ArrayList<JSONPolyfeature> featureList) {
 
-        private WeakReference<MapsActivity> activityReference;
-
-        // only retain a weak reference to the activity
-        LISTMapAsyncTask(MapsActivity context) {
-            activityReference = new WeakReference<>(context);
-        }
-
-        @Override
-        protected ArrayList<JSONPolyfeature> doInBackground(URL... urls) {
-            canMakeServerRequest = false;
-            // Create URL object
-            URL url = createUrl(finalRequestString);
-
-            // Perform HTTP request to the URL and receive a JSON response back
-            String jsonResponse = "";
-            try {
-                jsonResponse = makeHttpRequest(url);
-            } catch (IOException e) {
-                // TODO Handle the IOException
-            }
-
-            return activityReference.get().extractPolyFromJson(jsonResponse);
-        }
-
-        @Override
-        protected void onPostExecute(ArrayList<JSONPolyfeature> featureList) {
-
-            // get a reference to the activity if it is still there
-            MapsActivity activity = activityReference.get();
-            if (activity == null || activity.isFinishing()) return;
-
-            if (featureList == null) {
-                Toast.makeText(activityReference.get().getBaseContext(), "There was a problem with the server request",
-                        Toast.LENGTH_SHORT).show();
-                activityReference.get().progressBar.setVisibility(View.INVISIBLE);
-                canMakeServerRequest = true;
-                return;
-            }
-            int collectionCount = featureList.size();
-            if (collectionCount == 0) {
-                Toast.makeText(activityReference.get().getBaseContext(), "No results for this view", Toast.LENGTH_SHORT).show();
-            }
-
-            switch (geometryType) {
-                case "rings": // for rings or MRT data
-                    final ArrayList<Polygon> polyFeatures = new ArrayList<>();
-                    for (JSONPolyfeature jsonPolygon : featureList) {
-                        PolygonOptions rectOptions = new PolygonOptions()
-                                .add(new LatLng(37.35, -122.0),
-                                        new LatLng(37.45, -122.0),
-                                        new LatLng(37.35, -122.2),
-                                        new LatLng(37.35, -122.0));
-                        // Get back the mutable Polygon
-                        Polygon polygon = mMap.addPolygon(rectOptions);
-                        final String tag = jsonPolygon.getName();
-                        polygon.setPoints(jsonPolygon.getGeometry());
-                        // set z index
-                        polygon.setZIndex(1000);
-                        if (jsonPolygon.hasHoles()) {
-                            polygon.setHoles(jsonPolygon.getHoles());
-                        }
-                        doPolygonStyling(tag, polygon);
-                        polygon.setTag(tag);
-                        if (layerName.equals("Cadastral Parcels") && tag.contains("PID: 0")) {
-                            polygon.setClickable(false);
-                        } else {
-                            polygon.setClickable(true);
-                        }
-                        polygon.setStrokeWidth(3);
-                        polyFeatures.add(polygon);
-                        mMap.setOnPolygonClickListener(polygon1 -> {
-                            for (Polygon feature : polyFeatures) {
-                                feature.setStrokeWidth(3);
-                            }
-                            polygon1.setStrokeWidth(7);
-                            if (polygon1.getTag() != null) {
-                                activityReference.get().callout.setText(polygon1.getTag().toString());
-                            }
-                            activityReference.get().callout.setVisibility(View.VISIBLE);
-                        });
-                    }
-                    polygonList = polyFeatures; // keep a copy of it
-                    break;
-                case "paths":
-                    final ArrayList<Polyline> lineFeatures = new ArrayList<>();
-                    for (JSONPolyfeature jsonPolyline : featureList) {
-                        PolylineOptions polyOptions = new PolylineOptions()
-                                .add(new LatLng(37.35, -122.0),
-                                        new LatLng(37.45, -122.0));
-                        // Get back the mutable Polyline
-                        Polyline polyline = mMap.addPolyline(polyOptions);
-                        // set z index so it sits above the tile overlay
-                        polyline.setZIndex(1000);
-                        final String tag = jsonPolyline.getName();
-                        polyline.setPoints(jsonPolyline.getGeometry());
-                        polyline.setTag(tag);
-                        polyline.setClickable(true);
-                        polyline.setWidth(3);
-                        lineFeatures.add(polyline);
-                        mMap.setOnPolylineClickListener(polyline1 -> {
-                            for (Polyline feature : lineFeatures) {
-                                feature.setWidth(3);
-                            }
-                            polyline1.setWidth(7);
-                            if (polyline1.getTag() != null) {
-                                activityReference.get().callout.setText(polyline1.getTag().toString());
-                            }
-                            activityReference.get().callout.setVisibility(View.VISIBLE);
-                        });
-                    }
-                    break;
-                case "none":
-                    markers.clear();
-                    for (int i = 0; i < collectionCount; i++) {
-                        final String keyValue = featureList.get(i).getName();
-                        // Instantiates a new marker
-                        MarkerOptions markerOptions = new MarkerOptions()
-                                .position(featureList.get(i).getPointCoords())
-                                .title(keyValue);
-                        Marker mMarker = mMap.addMarker(markerOptions);
-                        mMarker.setTag(keyValue);
-                        markers.add(mMarker);
-                    }
-                    break;
-            }
-
-            // add current location to map - if known
-            if (currentPosition != null) {
-                Bitmap icon = getBitmapFromDrawable();
-                MarkerOptions markerOptions = new MarkerOptions()
-                        .position(currentPosition)
-                        .icon(BitmapDescriptorFactory.fromBitmap(icon))
-                        .title("Current Position");
-                mMarker = mMap.addMarker(markerOptions);
-            }
-
-            // make links clickable, hopefully
-            activityReference.get().callout.setAutoLinkMask(Linkify.WEB_URLS);
+        if (featureList == null) {
+            Toast.makeText(this, "There was a problem with the server request",
+                    Toast.LENGTH_SHORT).show();
+            progressBar.setVisibility(View.INVISIBLE);
             canMakeServerRequest = true;
-            activityReference.get().progressBar.setVisibility(View.INVISIBLE);
+            return;
+        }
+        int collectionCount = featureList.size();
+        if (collectionCount == 0) {
+            Toast.makeText(this, "No results for this view", Toast.LENGTH_SHORT).show();
         }
 
-        private void doPolygonStyling(String tag, Polygon polygon) {
-            switch (layerName) { //
-                case "TasWater Water Serviced Land":
-                    if (tag.contains("Full Service")) {
-                        polygon.setFillColor(Color.argb(alphaValue, 0, 191, 214));
+        switch (geometryType) {
+            case "rings": // for rings or MRT data
+                final ArrayList<Polygon> polyFeatures = new ArrayList<>();
+                for (JSONPolyfeature jsonPolygon : featureList) {
+                    PolygonOptions rectOptions = new PolygonOptions()
+                            .add(new LatLng(37.35, -122.0),
+                                    new LatLng(37.45, -122.0),
+                                    new LatLng(37.35, -122.2),
+                                    new LatLng(37.35, -122.0));
+                    // Get back the mutable Polygon
+                    Polygon polygon = mMap.addPolygon(rectOptions);
+                    final String tag = jsonPolygon.getName();
+                    polygon.setPoints(jsonPolygon.getGeometry());
+                    // set z index
+                    polygon.setZIndex(1000);
+                    if (jsonPolygon.hasHoles()) {
+                        polygon.setHoles(jsonPolygon.getHoles());
+                    }
+                    doPolygonStyling(tag, polygon);
+                    polygon.setTag(tag);
+                    if (layerName.equals("Cadastral Parcels") && tag.contains("PID: 0")) {
+                        polygon.setClickable(false);
                     } else {
-                        polygon.setFillColor(Color.argb(alphaValue, 255, 198, 39));
+                        polygon.setClickable(true);
                     }
-                    break;
-                case "Tasmanian Planning Zones":
-                    HashMap<String, Integer> planningColorMap = ColorMappingHelper.makePlanningOnlineColorMap(alphaValue);
-                    for (String key : planningColorMap.keySet()) {
-                        if (tag.contains(key)) {
-                            polygon.setFillColor(planningColorMap.get(key));
+                    polygon.setStrokeWidth(3);
+                    polyFeatures.add(polygon);
+                    mMap.setOnPolygonClickListener(polygon1 -> {
+                        for (Polygon feature : polyFeatures) {
+                            feature.setStrokeWidth(3);
                         }
-                    }
-                    break;
-                case "Soil Types":
-                    HashMap<String, Integer> soilColorMap = ColorMappingHelper.makeSoilsColorMap(alphaValue);
-                    for (String key : soilColorMap.keySet()) {
-                        if (tag.contains(key)) {
-                            polygon.setFillColor(soilColorMap.get(key));
+                        polygon1.setStrokeWidth(7);
+                        if (polygon1.getTag() != null) {
+                            callout.setText(polygon1.getTag().toString());
                         }
-                    }
-                    break;
-                case "Authority Land":
-                    HashMap<String, Integer> authorityColorMap = ColorMappingHelper.makeAuthorityColorMap(alphaValue);
-                    for (String key : authorityColorMap.keySet()) {
-                        if (tag.contains(key)) {
-                            polygon.setFillColor(authorityColorMap.get(key));
+                        callout.setVisibility(View.VISIBLE);
+                    });
+                }
+                polygonList = polyFeatures; // keep a copy of it
+                break;
+            case "paths":
+                final ArrayList<Polyline> lineFeatures = new ArrayList<>();
+                for (JSONPolyfeature jsonPolyline : featureList) {
+                    PolylineOptions polyOptions = new PolylineOptions()
+                            .add(new LatLng(37.35, -122.0),
+                                    new LatLng(37.45, -122.0));
+                    // Get back the mutable Polyline
+                    Polyline polyline = mMap.addPolyline(polyOptions);
+                    // set z index so it sits above the tile overlay
+                    polyline.setZIndex(1000);
+                    final String tag = jsonPolyline.getName();
+                    polyline.setPoints(jsonPolyline.getGeometry());
+                    polyline.setTag(tag);
+                    polyline.setClickable(true);
+                    polyline.setWidth(3);
+                    lineFeatures.add(polyline);
+                    mMap.setOnPolylineClickListener(polyline1 -> {
+                        for (Polyline feature : lineFeatures) {
+                            feature.setWidth(3);
                         }
-                    }
-                    break;
-                case "Landslide Planning Map – Hazard Bands 20131022":
-                    HashMap<String, Integer> landslideColorMap = ColorMappingHelper.makeLandslideHazardColorMap(alphaValue);
-                    for (String key : landslideColorMap.keySet()) {
-                        if (tag.contains(key)) {
-                            polygon.setFillColor(landslideColorMap.get(key));
+                        polyline1.setWidth(7);
+                        if (polyline1.getTag() != null) {
+                            callout.setText(polyline1.getTag().toString());
                         }
-                    }
-                    break;
-                default:
-                    polygon.setFillColor(Color.argb(alphaValue, 150, 50, 50));
-            }
+                        callout.setVisibility(View.VISIBLE);
+                    });
+                }
+                break;
+            case "none":
+                markers.clear();
+                for (int i = 0; i < collectionCount; i++) {
+                    final String keyValue = featureList.get(i).getName();
+                    // Instantiates a new marker
+                    MarkerOptions markerOptions = new MarkerOptions()
+                            .position(featureList.get(i).getPointCoords())
+                            .title(keyValue);
+                    Marker marker = mMap.addMarker(markerOptions);
+                    marker.setTag(keyValue);
+                    markers.add(marker);
+                }
+                break;
         }
 
-        /**
-         * Returns new URL object from the given string URL.
-         */
-        private URL createUrl(String stringUrl) {
-            URL url;
-            try {
-                url = new URL(stringUrl);
-            } catch (MalformedURLException exception) {
-                Log.e(TAG, "Error with creating URL", exception);
-                return null;
-            }
-            return url;
+        // add current location to map - if known
+        if (currentPosition != null) {
+            Bitmap icon = getBitmapFromDrawable();
+            MarkerOptions markerOptions = new MarkerOptions()
+                    .position(currentPosition)
+                    .icon(BitmapDescriptorFactory.fromBitmap(icon))
+                    .title("Current Position");
+            mMarker = mMap.addMarker(markerOptions);
         }
 
-        /**
-         * Make an HTTP request to the given URL and return a String as the response.
-         */
-        private String makeHttpRequest(URL url) throws IOException {
-            String jsonResponse = "";
-            HttpURLConnection urlConnection = null;
-            InputStream inputStream = null;
+        // make links clickable, hopefully
+        callout.setAutoLinkMask(Linkify.WEB_URLS);
+        canMakeServerRequest = true;
+        progressBar.setVisibility(View.INVISIBLE);
+    }
 
-            // check for null URL
-            if (url == null) {
-                return jsonResponse;
-            }
-
-            try {
-                urlConnection = (HttpURLConnection) url.openConnection();
-                urlConnection.setRequestMethod("GET");
-                urlConnection.setReadTimeout(10000 /* milliseconds */);
-                urlConnection.setConnectTimeout(15000 /* milliseconds */);
-                urlConnection.connect();
-                // check response code
-                int responseCode = urlConnection.getResponseCode();
-                if (responseCode != 200) {
-                    // invalid response
-                    Log.i(TAG + " http response code", String.valueOf(responseCode));
-                    Toast.makeText(activityReference.get().getBaseContext(),
-                            "A problem has occurred with the server, please try again later",
-                            Toast.LENGTH_SHORT).show();
-                    return jsonResponse;
+    private void doPolygonStyling(String tag, Polygon polygon) {
+        switch (layerName) { //
+            case "TasWater Water Serviced Land":
+                if (tag.contains("Full Service")) {
+                    polygon.setFillColor(Color.argb(alphaValue, 0, 191, 214));
+                } else {
+                    polygon.setFillColor(Color.argb(alphaValue, 255, 198, 39));
                 }
-                inputStream = urlConnection.getInputStream();
-                jsonResponse = readFromStream(inputStream);
-            } catch (SocketTimeoutException e) {
-                Log.e(TAG, e.getLocalizedMessage());
-                Toast.makeText(activityReference.get().getBaseContext(),
-                        "The server timed out, please try again later", Toast.LENGTH_SHORT).show();
-                return jsonResponse;
-            } catch (IOException e) {
-                Log.e(TAG, e.getLocalizedMessage());
-                Toast.makeText(activityReference.get().getBaseContext(),
-                        "An error occurred, please try again later", Toast.LENGTH_SHORT).show();
-                return jsonResponse;
-            } finally {
-                if (urlConnection != null) {
-                    urlConnection.disconnect();
+                break;
+            case "Tasmanian Planning Zones":
+                HashMap<String, Integer> planningColorMap = ColorMappingHelper.makePlanningOnlineColorMap(alphaValue);
+                for (String key : planningColorMap.keySet()) {
+                    if (tag.contains(key)) {
+                        polygon.setFillColor(planningColorMap.get(key));
+                    }
                 }
-                if (inputStream != null) {
-                    // function must handle java.io.IOException here
-                    inputStream.close();
+                break;
+            case "Soil Types":
+                HashMap<String, Integer> soilColorMap = ColorMappingHelper.makeSoilsColorMap(alphaValue);
+                for (String key : soilColorMap.keySet()) {
+                    if (tag.contains(key)) {
+                        polygon.setFillColor(soilColorMap.get(key));
+                    }
                 }
-            }
-            return jsonResponse;
-        }
-
-        /**
-         * Convert the {@link InputStream} into a String which contains the
-         * whole JSON response from the server.
-         */
-        private String readFromStream(InputStream inputStream) throws IOException {
-            StringBuilder output = new StringBuilder();
-            if (inputStream != null) {
-                InputStreamReader inputStreamReader = new InputStreamReader(inputStream, Charset.forName("UTF-8"));
-                BufferedReader reader = new BufferedReader(inputStreamReader);
-                String line = reader.readLine();
-                while (line != null) {
-                    output.append(line);
-                    line = reader.readLine();
+                break;
+            case "Authority Land":
+                HashMap<String, Integer> authorityColorMap = ColorMappingHelper.makeAuthorityColorMap(alphaValue);
+                for (String key : authorityColorMap.keySet()) {
+                    if (tag.contains(key)) {
+                        polygon.setFillColor(authorityColorMap.get(key));
+                    }
                 }
-            }
-            return output.toString();
+                break;
+            case "Landslide Planning Map – Hazard Bands 20131022":
+                HashMap<String, Integer> landslideColorMap = ColorMappingHelper.makeLandslideHazardColorMap(alphaValue);
+                for (String key : landslideColorMap.keySet()) {
+                    if (tag.contains(key)) {
+                        polygon.setFillColor(landslideColorMap.get(key));
+                    }
+                }
+                break;
+            default:
+                polygon.setFillColor(Color.argb(alphaValue, 150, 50, 50));
         }
     }
 

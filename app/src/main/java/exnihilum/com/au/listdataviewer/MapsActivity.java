@@ -113,11 +113,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private static Drawable drawable;
     // polygon list, needs global access
     private static ArrayList<Polygon> polygonList = null;
-    // arraylist for markers
+    // arraylist for markers from server
     private static ArrayList<Marker> markers = new ArrayList<>();
+    // special list for marker of own position - max length only ever 1
+    private ArrayList<Marker> ownMarker = new ArrayList<>();
     private static CoordinateConversion mCoordinateConversion;
-    // your location
-    private static Marker mMarker;
+
     // Volley request queue
     RequestQueue queue;
     LayerType selectedType = null;
@@ -262,7 +263,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .findFragmentById(map);
         mapFragment.getMapAsync(this);
 
-        String[] boundingBox = generateBoundingBox();
+        String[] boundingBox = generateBoundingBox(initialPosition);
 
         // set progress bar
         progressBar = findViewById(R.id.indeterminateBar);
@@ -311,7 +312,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         switch (server) {
             case "MRT":
-                String geologyString = makeGeologyString(layerName, generateBoundingBox());
+                String geologyString = makeGeologyString(layerName, generateBoundingBox(initialPosition));
                 isGeologyRequest = true;
                 finalRequestString = geologyString;
                 break;
@@ -557,11 +558,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             // get the current zoom level, don't rezoom
             float currentZoom = mMap.getCameraPosition().zoom;
 
-            // update the marker if set
-            if (mMarker != null) {
-                mMarker.setPosition(currentPosition);
-                mMarker.setVisible(true);
-            }
+            // refresh the marker
+            destroyMarker();
+            createMarker(currentPosition);
 
             float[] results = new float[3];
             Location.distanceBetween(
@@ -570,13 +569,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     initialPosition.latitude,
                     initialPosition.longitude,
                     results);
-            if (results[0] > 10.0 && canMakeServerRequest) {
+            if (results[0] > 10 && canMakeServerRequest) {
                 mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(currentPosition, currentZoom));
 
                 if (!isGeologyRequest) {
-                    finalRequestString = generateString(selectedType, generateBoundingBox());
+                    finalRequestString = generateString(selectedType, generateBoundingBox(currentPosition));
                 } else {
-                    finalRequestString = makeGeologyString(layerName, generateBoundingBox());
+                    finalRequestString = makeGeologyString(layerName, generateBoundingBox(currentPosition));
                 }
                 // make new server request
                 chooseTaskAndExecute();
@@ -767,7 +766,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         VolleySingleton.getInstance(this).addToRequestQueue(jsonObjectRequest);
     }
 
-    private String[] generateBoundingBox() {
+    private String[] generateBoundingBox(LatLng position) {
         // build envelope from initialPosition
         double delta;
         if (isGeologyRequest) {
@@ -775,10 +774,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } else {
             delta = 0.003;
         }
-        String lowerLeftLat = String.valueOf(initialPosition.latitude - delta);
-        String lowerLeftLon = String.valueOf(initialPosition.longitude - delta);
-        String upperRightLat = String.valueOf(initialPosition.latitude + delta);
-        String upperRightLon = String.valueOf(initialPosition.longitude + delta);
+        String lowerLeftLat = String.valueOf(position.latitude - delta);
+        String lowerLeftLon = String.valueOf(position.longitude - delta);
+        String upperRightLat = String.valueOf(position.latitude + delta);
+        String upperRightLon = String.valueOf(position.longitude + delta);
         return new String[]{lowerLeftLat, lowerLeftLon, upperRightLat, upperRightLon};
     }
 
@@ -892,15 +891,31 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 // redraw tiles after clear
                 addTiles(tileOverlay);
                 if (!isGeologyRequest) {
-                    finalRequestString = generateString(selectedType, generateBoundingBox());
+                    finalRequestString = generateString(selectedType, generateBoundingBox(initialPosition));
                 } else {
-                    finalRequestString = makeGeologyString(layerName, generateBoundingBox());
+                    finalRequestString = makeGeologyString(layerName, generateBoundingBox(initialPosition));
                 }
                 // make new server request
                 chooseTaskAndExecute();
             }
         });
+    }
 
+    private void createMarker(LatLng position) {
+        Bitmap icon = getBitmapFromDrawable();
+        Marker marker = mMap.addMarker(new MarkerOptions()
+                .position(position)
+                .icon(BitmapDescriptorFactory.fromBitmap(icon))
+                .title("Current Position"));
+        ownMarker.add(marker);
+    }
+
+    private void destroyMarker() {
+        if (!ownMarker.isEmpty()) {
+            for (Marker marker:ownMarker) {
+                marker.remove();
+            }
+        }
     }
 
     private void addTiles(TileOverlayOptions tileOverlay) {
@@ -926,7 +941,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         if (searchWindow != null) {
             searchWindow.remove();
         }
-        String[] points = generateBoundingBox();
+        String[] points = generateBoundingBox(initialPosition);
         Double lowerLeftLat = Double.valueOf(points[0]);
         Double lowerLeftLon = Double.valueOf(points[1]);
         Double upperRightLat = Double.valueOf(points[2]);
@@ -1214,6 +1229,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         super.onStop();
     }
 
+    @Override
+    public void onBackPressed() {
+        super.onBackPressed();
+        finishAndRemoveTask();
+    }
+
     protected void processFeatures(ArrayList<JSONPolyfeature> featureList) {
 
         if (featureList == null) {
@@ -1309,16 +1330,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     markers.add(marker);
                 }
                 break;
-        }
-
-        // add current location to map - if known
-        if (currentPosition != null) {
-            Bitmap icon = getBitmapFromDrawable();
-            MarkerOptions markerOptions = new MarkerOptions()
-                    .position(currentPosition)
-                    .icon(BitmapDescriptorFactory.fromBitmap(icon))
-                    .title("Current Position");
-            mMarker = mMap.addMarker(markerOptions);
         }
 
         // make links clickable, hopefully

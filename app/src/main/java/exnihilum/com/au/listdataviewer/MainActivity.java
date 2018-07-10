@@ -116,6 +116,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
                         for (LayerType type : layers) {
                             if (type.isNameEqualTo(item)) {
                                 Intent intent = new Intent(getApplicationContext(), MapsActivity.class);
+                                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                                 switch (type.getServer()) {
                                     case "COL":
                                         intent.putExtra("layerName", cOLLayerMap.get(item));
@@ -203,10 +204,6 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
-            //case R.id.action_settings:
-            //    showNavigationConfirmationDialog();
-            //    return true;
-
             case R.id.action_about:
                 Intent intent = new Intent(MainActivity.this, AboutActivity.class);
                 intent.addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY);

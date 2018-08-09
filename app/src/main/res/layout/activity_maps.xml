@@ -46,6 +46,21 @@
         android:layout_below="@+id/spacer"
         android:background="@color/about_item_text_color" />
 
+    <View
+        android:id="@+id/spacer2"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_below="@+id/locationBackground"
+        android:background="@color/about_item_text_color"
+        android:backgroundTint="@color/colorAccentDark" />
+
+    <View
+        android:id="@+id/geocodeBackground"
+        android:layout_width="match_parent"
+        android:layout_height="128dp"
+        android:layout_below="@+id/spacer2"
+        android:background="@color/about_item_text_color" />
+
     <ImageView
         android:id="@+id/mapMenuButton"
         android:layout_width="wrap_content"
@@ -91,11 +106,55 @@
         android:textColor="#000000"
         android:textSize="20sp" />
 
+    <TextView
+        android:id="@+id/geocodeText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentStart="true"
+        android:layout_below="@id/radioGroup"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="16dp"
+        android:layout_toStartOf="@id/mapMenuButton"
+        android:background="@color/about_item_text_color"
+        android:padding="8dp"
+        android:text="@string/addressLookup"
+        android:textColor="#000000"
+        android:textSize="20sp" />
+
+    <EditText
+        android:id="@+id/geocodeEditText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentStart="true"
+        android:layout_below="@id/geocodeText"
+        android:layout_marginEnd="16dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="16dp"
+        android:hint="@string/addressHint"
+        android:inputType="text">
+    </EditText>
+
+    <ImageView
+        android:id="@+id/geocodeButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentEnd="true"
+        android:layout_marginEnd="16dp"
+        android:layout_marginTop="16dp"
+        android:layout_below="@id/radioGroup"
+        android:paddingBottom="4dp"
+        android:paddingEnd="16dp"
+        android:paddingStart="16dp"
+        android:paddingTop="4dp"
+        android:src="@android:drawable/ic_menu_search"
+        tools:ignore="ContentDescription" />
+
     <RadioGroup xmlns:android="http://schemas.android.com/apk/res/android"
         android:id="@+id/radioGroup"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:layout_below="@id/locationText"
+        android:layout_marginEnd="16dp"
         android:layout_marginStart="16dp"
         android:orientation="horizontal"
         android:padding="8dp">

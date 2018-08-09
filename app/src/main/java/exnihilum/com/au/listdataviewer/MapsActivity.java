@@ -25,6 +25,7 @@ import android.text.method.LinkMovementMethod;
 import android.text.util.Linkify;
 import android.util.Log;
 import android.view.View;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.RadioButton;
@@ -160,6 +161,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private TextView opacityText;
     private TextView locationText;
     private TextView coordinatesText;
+    private TextView geocodeHeading;
+    private View geocodeBackground;
+    private EditText geocodeEntry;
+    private ImageView geocodeButton;
     private ImageView menuButton;
     private View sliderBackground;
     private View locationBackground;
@@ -207,6 +212,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         locationBackground = findViewById(R.id.locationBackground);
         radioGroup = findViewById(R.id.radioGroup);
         coordinatesText = findViewById(R.id.coords_callout);
+        geocodeBackground = findViewById(R.id.geocodeBackground);
+        geocodeHeading = findViewById(R.id.geocodeText);
+        geocodeEntry = findViewById(R.id.geocodeEditText);
+        geocodeButton = findViewById(R.id.geocodeButton);
 
         opacitySlider.setVisibility(View.INVISIBLE);
         opacityText.setVisibility(View.INVISIBLE);
@@ -216,7 +225,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         radioGroup.setVisibility(View.INVISIBLE);
         spacer.setVisibility(View.INVISIBLE);
         coordinatesText.setVisibility(View.INVISIBLE);
+        geocodeEntry.setVisibility(View.INVISIBLE);
+        geocodeHeading.setVisibility(View.INVISIBLE);
+        geocodeBackground.setVisibility(View.INVISIBLE);
+        geocodeButton.setVisibility(View.INVISIBLE);
         menuButton.setColorFilter(Color.BLACK);
+        geocodeButton.setColorFilter(Color.BLACK);
 
         // set onClick for menu buttons
         menuButton.setOnClickListener(view -> {
@@ -228,6 +242,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 locationBackground.setVisibility(View.VISIBLE);
                 radioGroup.setVisibility(View.VISIBLE);
                 spacer.setVisibility(View.VISIBLE);
+                geocodeEntry.setVisibility(View.VISIBLE);
+                geocodeHeading.setVisibility(View.VISIBLE);
+                geocodeBackground.setVisibility(View.VISIBLE);
+                geocodeButton.setVisibility(View.VISIBLE);
                 menuButton.setImageResource(android.R.drawable.ic_menu_close_clear_cancel);
                 RadioButton locationOK = findViewById(R.id.locationOK);
                 RadioButton locationNO = findViewById(R.id.locationNO);
@@ -245,6 +263,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 locationBackground.setVisibility(View.INVISIBLE);
                 radioGroup.setVisibility(View.INVISIBLE);
                 spacer.setVisibility(View.INVISIBLE);
+                geocodeEntry.setVisibility(View.INVISIBLE);
+                geocodeHeading.setVisibility(View.INVISIBLE);
+                geocodeBackground.setVisibility(View.INVISIBLE);
+                geocodeButton.setVisibility(View.INVISIBLE);
                 menuButton.setImageResource(android.R.drawable.ic_menu_add);
                 isMenuShowing = false;
             }
@@ -1320,14 +1342,16 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             case "none":
                 markers.clear();
                 for (int i = 0; i < collectionCount; i++) {
+                    if (mMap != null) {
                     final String keyValue = featureList.get(i).getName();
                     // Instantiates a new marker
                     MarkerOptions markerOptions = new MarkerOptions()
                             .position(featureList.get(i).getPointCoords())
                             .title(keyValue);
-                    Marker marker = mMap.addMarker(markerOptions);
-                    marker.setTag(keyValue);
-                    markers.add(marker);
+                        Marker marker = mMap.addMarker(markerOptions);
+                        marker.setTag(keyValue);
+                        markers.add(marker);
+                    }
                 }
                 break;
         }

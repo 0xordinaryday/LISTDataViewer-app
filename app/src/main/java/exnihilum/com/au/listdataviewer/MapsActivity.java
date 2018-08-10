@@ -77,6 +77,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 
+import Utilities.AddressUtilities;
 import Utilities.ColorMappingHelper;
 import Utilities.CoordinateConversion;
 import Utilities.ParametersHelper;
@@ -217,35 +218,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         geocodeEntry = findViewById(R.id.geocodeEditText);
         geocodeButton = findViewById(R.id.geocodeButton);
 
-        opacitySlider.setVisibility(View.INVISIBLE);
-        opacityText.setVisibility(View.INVISIBLE);
-        sliderBackground.setVisibility(View.INVISIBLE);
-        locationBackground.setVisibility(View.INVISIBLE);
-        locationText.setVisibility(View.INVISIBLE);
-        radioGroup.setVisibility(View.INVISIBLE);
-        spacer.setVisibility(View.INVISIBLE);
-        coordinatesText.setVisibility(View.INVISIBLE);
-        geocodeEntry.setVisibility(View.INVISIBLE);
-        geocodeHeading.setVisibility(View.INVISIBLE);
-        geocodeBackground.setVisibility(View.INVISIBLE);
-        geocodeButton.setVisibility(View.INVISIBLE);
+        hideAllTheThings();
+
         menuButton.setColorFilter(Color.BLACK);
         geocodeButton.setColorFilter(Color.BLACK);
 
         // set onClick for menu buttons
         menuButton.setOnClickListener(view -> {
             if (!isMenuShowing) {
-                opacitySlider.setVisibility(View.VISIBLE);
-                opacityText.setVisibility(View.VISIBLE);
-                sliderBackground.setVisibility(View.VISIBLE);
-                locationText.setVisibility(View.VISIBLE);
-                locationBackground.setVisibility(View.VISIBLE);
-                radioGroup.setVisibility(View.VISIBLE);
-                spacer.setVisibility(View.VISIBLE);
-                geocodeEntry.setVisibility(View.VISIBLE);
-                geocodeHeading.setVisibility(View.VISIBLE);
-                geocodeBackground.setVisibility(View.VISIBLE);
-                geocodeButton.setVisibility(View.VISIBLE);
+                showAllTheThings();
                 menuButton.setImageResource(android.R.drawable.ic_menu_close_clear_cancel);
                 RadioButton locationOK = findViewById(R.id.locationOK);
                 RadioButton locationNO = findViewById(R.id.locationNO);
@@ -256,20 +237,22 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 }
                 isMenuShowing = true;
             } else {
-                opacitySlider.setVisibility(View.INVISIBLE);
-                opacityText.setVisibility(View.INVISIBLE);
-                sliderBackground.setVisibility(View.INVISIBLE);
-                locationText.setVisibility(View.INVISIBLE);
-                locationBackground.setVisibility(View.INVISIBLE);
-                radioGroup.setVisibility(View.INVISIBLE);
-                spacer.setVisibility(View.INVISIBLE);
-                geocodeEntry.setVisibility(View.INVISIBLE);
-                geocodeHeading.setVisibility(View.INVISIBLE);
-                geocodeBackground.setVisibility(View.INVISIBLE);
-                geocodeButton.setVisibility(View.INVISIBLE);
+                hideAllTheThings();
                 menuButton.setImageResource(android.R.drawable.ic_menu_add);
                 isMenuShowing = false;
             }
+        });
+
+        geocodeButton.setOnClickListener(view -> {
+            String queryText = geocodeEntry.getText().toString();
+            AddressParser addressParser = new AddressParser();
+            Address address = addressParser.parseAddress(queryText);
+            String queryString = AddressUtilities.generateGeocodeQuery(address);
+            Log.i(TAG, queryString);
+            submitGeocodeRequest(queryString);
+            hideAllTheThings();
+            menuButton.setImageResource(android.R.drawable.ic_menu_add);
+            isMenuShowing = false;
         });
 
         // get initial position from shared preferences, and check if navigation allowed
@@ -386,6 +369,35 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         chooseTaskAndExecute();
         progressBar.setVisibility(View.VISIBLE);
+    }
+
+    private void hideAllTheThings() {
+        opacitySlider.setVisibility(View.INVISIBLE);
+        opacityText.setVisibility(View.INVISIBLE);
+        sliderBackground.setVisibility(View.INVISIBLE);
+        locationBackground.setVisibility(View.INVISIBLE);
+        locationText.setVisibility(View.INVISIBLE);
+        radioGroup.setVisibility(View.INVISIBLE);
+        spacer.setVisibility(View.INVISIBLE);
+        coordinatesText.setVisibility(View.INVISIBLE);
+        geocodeEntry.setVisibility(View.INVISIBLE);
+        geocodeHeading.setVisibility(View.INVISIBLE);
+        geocodeBackground.setVisibility(View.INVISIBLE);
+        geocodeButton.setVisibility(View.INVISIBLE);
+    }
+
+    private void showAllTheThings() {
+        opacitySlider.setVisibility(View.VISIBLE);
+        opacityText.setVisibility(View.VISIBLE);
+        sliderBackground.setVisibility(View.VISIBLE);
+        locationText.setVisibility(View.VISIBLE);
+        locationBackground.setVisibility(View.VISIBLE);
+        radioGroup.setVisibility(View.VISIBLE);
+        spacer.setVisibility(View.VISIBLE);
+        geocodeEntry.setVisibility(View.VISIBLE);
+        geocodeHeading.setVisibility(View.VISIBLE);
+        geocodeBackground.setVisibility(View.VISIBLE);
+        geocodeButton.setVisibility(View.VISIBLE);
     }
 
     // use method to make sure queue is only instantiated once (singleton)
@@ -762,6 +774,36 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 (Request.Method.GET, finalRequestString, null, response -> {
                     ArrayList<JSONPolyfeature> featureList = extractPolyFromJson(response);
                     processFeatures(featureList);
+                }, error -> {
+                    String message = "";
+                    if (error instanceof TimeoutError || error instanceof NoConnectionError) {
+                        //This indicates that the request has either time out or there is no connection
+                        message = "The request timed out or there is no connection";
+                    } else if (error instanceof AuthFailureError) {
+                        // Error indicating that there was an Authentication Failure while performing the request
+                        message = "There was an Authentication Failure with the server"; // should never happen
+                    } else if (error instanceof ServerError) {
+                        //Indicates that the server responded with a error response
+                        message = "The server gave an error :/";
+                    } else if (error instanceof NetworkError) {
+                        //Indicates that there was network error while performing the request
+                        message = "There was a network error";
+                    } else if (error instanceof ParseError) {
+                        // Indicates that the server response could not be parsed
+                        message = "The server response was incomprehensible";
+                    }
+                    Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+                });
+
+        // Access the RequestQueue through the singleton class.
+        jsonObjectRequest.setTag("request");
+        VolleySingleton.getInstance(this).addToRequestQueue(jsonObjectRequest);
+    }
+
+    private void submitGeocodeRequest(String requestString) {
+        JsonObjectRequest jsonObjectRequest = new JsonObjectRequest
+                (Request.Method.GET, requestString, null, response -> {
+                    Log.i(TAG, response.toString());
                 }, error -> {
                     String message = "";
                     if (error instanceof TimeoutError || error instanceof NoConnectionError) {

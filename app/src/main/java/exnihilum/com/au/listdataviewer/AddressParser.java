@@ -10,13 +10,11 @@ public class AddressParser {
 
     private static Address parsedAddress = new Address();
     private static ArrayList<String> tokensList;
-    private String rawAddressString;
 
-    public AddressParser(String rawAddressString) {
-        this.rawAddressString = rawAddressString;
+    public AddressParser() {
     }
 
-    private Address parseAddress(String rawAddressString) {
+    public Address parseAddress(String rawAddressString) {
         String[] tokens = rawAddressString.trim().replaceAll(",", "").toUpperCase().split(" ");
         tokensList = new ArrayList<>(Arrays.asList(tokens));
 

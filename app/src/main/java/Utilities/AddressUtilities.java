@@ -2,6 +2,8 @@ package Utilities;
 
 import java.util.HashMap;
 
+import exnihilum.com.au.listdataviewer.Address;
+
 public class AddressUtilities {
 
     public static String[] makeStreetTypeList() {
@@ -65,5 +67,41 @@ public class AddressUtilities {
         contractions.put("W", "WAY");
         return contractions;
     }
+
+    public static String generateGeocodeQuery(Address address) {
+
+        // %22 is "
+        // %3D is =
+        // %27 is '
+
+        String locality = "";
+        String streetName = "";
+        String streetType = "";
+        String streetNumber = "";
+
+        if (!address.getLocality().isEmpty()) {
+            locality = "%22LOCALITY%22+%3D+%27" + address.getLocality() + "%27";
+        }
+        if (!address.getStreetName().isEmpty()) {
+            streetName = "AND+%22STREET%22+%3D+%27" + address.getStreetName() + "%27";
+        }
+        if (!address.getStreetType().isEmpty()) {
+            streetType = "AND+%22ST_TYPE%22+%3D+%27" + address.getStreetType() + "%27";
+        }
+        if (!address.getStreetNumber().isEmpty()) {
+            streetNumber = "AND+%22ST_NO_FROM%22+%3D+" + address.getStreetNumber();
+        }
+
+        return "https://services.thelist.tas.gov.au/arcgis/rest/services/Public/" +
+                "CadastreAndAdministrative/MapServer/43/query?where=" +
+                locality + streetName + streetNumber + streetType +
+                "&text=&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&" +
+                "spatialRel=esriSpatialRelIntersects&relationParam=&outFields=&returnGeometry=" +
+                "true&returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=&" +
+                "returnIdsOnly=false&returnCountOnly=false&orderByFields=&" +
+                "groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&" +
+                "gdbVersion=&returnDistinctValues=false&resultOffset=&resultRecordCount=&f=json";
+    }
+
 
 }

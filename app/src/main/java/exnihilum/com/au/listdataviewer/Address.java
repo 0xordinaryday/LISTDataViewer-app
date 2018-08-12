@@ -11,6 +11,15 @@ public class Address {
     public Address() {
     }
 
+    public void clear() {
+        this.unitNumber = "";
+        this.streetNumber = "";
+        this.streetName = "";
+        this.streetType = "";
+        this.locality = "";
+    }
+
+
     public String getUnitNumber() {
         return unitNumber;
     }

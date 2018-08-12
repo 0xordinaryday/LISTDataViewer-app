@@ -15,6 +15,7 @@ public class AddressParser {
     }
 
     public Address parseAddress(String rawAddressString) {
+        parsedAddress.clear(); // if reusing
         String[] tokens = rawAddressString.trim().replaceAll(",", "").toUpperCase().split(" ");
         tokensList = new ArrayList<>(Arrays.asList(tokens));
 

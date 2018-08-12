@@ -76,6 +76,7 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Locale;
 
 import Utilities.AddressUtilities;
 import Utilities.ColorMappingHelper;
@@ -117,13 +118,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private static ArrayList<Polygon> polygonList = null;
     // arraylist for markers from server
     private static ArrayList<Marker> markers = new ArrayList<>();
-    // special list for marker of own position - max length only ever 1
-    private ArrayList<Marker> ownMarker = new ArrayList<>();
     private static CoordinateConversion mCoordinateConversion;
-
     // Volley request queue
     RequestQueue queue;
     LayerType selectedType = null;
+    // special list for marker of own position - max length only ever 1
+    private ArrayList<Marker> ownMarker = new ArrayList<>();
     // Provides access to the Fused Location Provider API.
     private FusedLocationProviderClient mFusedLocationClient;
     // Provides access to the Location Settings API.
@@ -174,6 +174,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private boolean isMenuShowing = false;
     // search window
     private Polygon searchWindow;
+    private AddressParser addressParser;
 
     // code to get bitmap from SVG file
     // http://stackoverflow.com/questions/33696488/getting-bitmap-from-vector-drawable
@@ -223,6 +224,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         menuButton.setColorFilter(Color.BLACK);
         geocodeButton.setColorFilter(Color.BLACK);
 
+        addressParser = new AddressParser();
+
         // set onClick for menu buttons
         menuButton.setOnClickListener(view -> {
             if (!isMenuShowing) {
@@ -245,7 +248,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         geocodeButton.setOnClickListener(view -> {
             String queryText = geocodeEntry.getText().toString();
-            AddressParser addressParser = new AddressParser();
             Address address = addressParser.parseAddress(queryText);
             String queryString = AddressUtilities.generateGeocodeQuery(address);
             Log.i(TAG, queryString);
@@ -803,7 +805,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private void submitGeocodeRequest(String requestString) {
         JsonObjectRequest jsonObjectRequest = new JsonObjectRequest
                 (Request.Method.GET, requestString, null, response -> {
-                    Log.i(TAG, response.toString());
+                    ArrayList<JSONPolyfeature> geocodeList = extractGeocodeJson(response);
+                    processGeocodeResponse(geocodeList);
                 }, error -> {
                     String message = "";
                     if (error instanceof TimeoutError || error instanceof NoConnectionError) {
@@ -976,7 +979,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private void destroyMarker() {
         if (!ownMarker.isEmpty()) {
-            for (Marker marker:ownMarker) {
+            for (Marker marker : ownMarker) {
                 marker.remove();
             }
         }
@@ -1037,11 +1040,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         return true;
     }
 
-    // new version using JSONPolyfeature object
-    private ArrayList<JSONPolyfeature> extractPolyFromJson(JSONObject listMapJSON) {
-        /*if (listMapJSON.)) { // checks for null and empty string
-            return null;
-        }*/
+    private ArrayList<JSONPolyfeature> extractGeocodeJson(JSONObject listMapJSON) {
         try { // check if there was an error
             if (listMapJSON.has("error")) {
                 return null;
@@ -1055,94 +1054,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             for (int i = 0; i < length; i++) {
                 JSONObject attributes = featureArray.getJSONObject(i);
                 JSONObject geometry = attributes.getJSONObject("geometry");
-                // differentiate between MRT and The LIST
-                String tagToSet;
-                JSONArray geometryArray;
-                if (!isGeologyRequest) {
-                    tagToSet = setTags(attributes.getJSONObject("attributes"));
-                } else {
-                    tagToSet = geoTags(attributes.getJSONObject("properties"));
-                }
+                String tagToSet = setGeoCodeTags(attributes.getJSONObject("attributes"));
 
-                if (geometryType.equals("paths") || geometryType.equals("rings")) {
-                    // differentiate between MRT and The LIST
-                    if (!isGeologyRequest) {
-                        geometryArray = geometry.getJSONArray(geometryType);
-                    } else {
-                        geometryArray = geometry.getJSONArray("coordinates");
-                    }
-                    // If there are results in the features array
-                    if (geometryArray.length() > 0) {
-                        for (int counter = 0; counter < geometryArray.length(); counter++) {
-                            // make a new poly feature - can be polygon or polyline
-                            JSONPolyfeature newPolyFeature = new JSONPolyfeature();
-                            // make a List<LatLng> for the object geometry
-                            ArrayList<LatLng> newGeometryList = new ArrayList<>();
-                            JSONArray workingArray;
-                            if (!isGeologyRequest) { // The LIST
-                                workingArray = geometryArray.getJSONArray(counter);
-                            } else { // MRT request has extra level of nexting
-                                workingArray = geometryArray.getJSONArray(counter).getJSONArray(0);
-                            }
-
-                            int featureLength = workingArray.length();
-                            for (int j = 0; j < featureLength; j++) {
-                                try {
-                                    double Lon = (workingArray.getJSONArray(j).getDouble(0));
-                                    double Lat = (workingArray.getJSONArray(j).getDouble(1));
-                                    LatLng toAppend = new LatLng(Lat, Lon);
-                                    newGeometryList.add(toAppend);
-                                } catch (NullPointerException e) {
-                                    Log.i(TAG, "value was null");
-                                }
-                            }
-                            // set the geometry list to the object
-                            newPolyFeature.setGeometry(newGeometryList);
-                            if (counter == 0) {
-                                // if this is the FIRST object from the array, set the name
-                                newPolyFeature.setName(tagToSet);
-                                featureList.add(newPolyFeature);
-                            } else {
-                                JSONPolyfeature firstFeature = featureList.get(featureList.size() - 1); // get the most recent entry
-                                double firstArea = SphericalUtil.computeSignedArea(firstFeature.getGeometry());
-                                double thisArea = SphericalUtil.computeSignedArea(newPolyFeature.getGeometry());
-                                // boolean thisSmaller = Math.abs(thisArea) < Math.abs(firstArea);
-                                boolean oppositeSigns = (firstArea > 0 && thisArea < 0) || (firstArea < 0 && thisArea > 0);
-                                if (geometryType.equals("rings") && !isGeologyRequest && oppositeSigns) { // assume any further parts are holes.
-                                    // if (geometryType.equals("rings") && thisSmaller && oppositeSigns) {
-
-                                    // has holes is NOT applicable to paths/polylines
-                                    // has holes - if not not setup previously, do now:
-                                    if (!firstFeature.hasHoles()) {
-                                        firstFeature.setHoles(new ArrayList<>());
-                                        firstFeature.setHasHoles(true);
-                                    }
-                                    // this is a hole, so it doesn't get a name, and it gets added to the
-                                    // hole list, not the main list
-                                    firstFeature.addHoleToList(newGeometryList);
-                                } else {
-                                    // not a hole, but a second/third/nth part to the shape
-                                    newPolyFeature.setName(tagToSet);
-                                    featureList.add(newPolyFeature);
-                                }
-                            }
-                        }
-                    }
-                } else if (geometryType.equals("none")) { // for point features
-                    Double x;
-                    Double y;
-                    if (isGeologyRequest) {
-                        geometryArray = geometry.getJSONArray("coordinates");
-                        x = (Double) geometryArray.get(0);
-                        y = (Double) geometryArray.get(1);
-                    } else {
-                        x = geometry.getDouble("x");
-                        y = geometry.getDouble("y");
-                    }
-                    LatLng newLatLng = new LatLng(y, x);
-                    JSONPolyfeature newPointFeature = new JSONPolyfeature(tagToSet, newLatLng);
-                    featureList.add(newPointFeature);
-                }
+                Double x = geometry.getDouble("x");
+                Double y = geometry.getDouble("y");
+                LatLng newLatLng = new LatLng(y, x);
+                JSONPolyfeature newPointFeature = new JSONPolyfeature(tagToSet, newLatLng);
+                featureList.add(newPointFeature);
             }
             return featureList;
         } catch (JSONException e) {
@@ -1273,6 +1191,20 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         return null;
     }
 
+    private String setGeoCodeTags(JSONObject paramAttributes) {
+        try {
+            String streetNumberFrom = String.format (Locale.US, "%.0f", paramAttributes.getDouble("ST_NO_FROM"));
+            String streetName = paramAttributes.getString("STREET");
+            String streetType = paramAttributes.getString("ST_TYPE");
+            String locality = paramAttributes.getString("LOCALITY");
+            String postcode = String.valueOf(paramAttributes.getInt("POSTCODE"));
+            return streetNumberFrom + " " + streetName + " " + streetType + " " + locality + " " + postcode;
+        } catch (JSONException e) {
+            Log.e(TAG, e.getLocalizedMessage());
+        }
+        return null;
+    }
+
     private void setLastLocation() {
         LatLng newLocation = mMap.getCameraPosition().target;
         float currentZoom = mMap.getCameraPosition().zoom;
@@ -1385,11 +1317,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 markers.clear();
                 for (int i = 0; i < collectionCount; i++) {
                     if (mMap != null) {
-                    final String keyValue = featureList.get(i).getName();
-                    // Instantiates a new marker
-                    MarkerOptions markerOptions = new MarkerOptions()
-                            .position(featureList.get(i).getPointCoords())
-                            .title(keyValue);
+                        final String keyValue = featureList.get(i).getName();
+                        // Instantiates a new marker
+                        MarkerOptions markerOptions = new MarkerOptions()
+                                .position(featureList.get(i).getPointCoords())
+                                .title(keyValue);
                         Marker marker = mMap.addMarker(markerOptions);
                         marker.setTag(keyValue);
                         markers.add(marker);
@@ -1402,6 +1334,153 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         callout.setAutoLinkMask(Linkify.WEB_URLS);
         canMakeServerRequest = true;
         progressBar.setVisibility(View.INVISIBLE);
+    }
+
+    private ArrayList<JSONPolyfeature> extractPolyFromJson(JSONObject listMapJSON) {
+        /*if (listMapJSON.)) { // checks for null and empty string
+            return null;
+        }*/
+        try { // check if there was an error
+            if (listMapJSON.has("error")) {
+                return null;
+            }
+
+            // setup object to hold data
+            ArrayList<JSONPolyfeature> featureList = new ArrayList<>();
+
+            JSONArray featureArray = listMapJSON.getJSONArray("features");
+            int length = featureArray.length();
+            for (int i = 0; i < length; i++) {
+                JSONObject attributes = featureArray.getJSONObject(i);
+                JSONObject geometry = attributes.getJSONObject("geometry");
+                // differentiate between MRT and The LIST
+                String tagToSet;
+                JSONArray geometryArray;
+                if (!isGeologyRequest) {
+                    tagToSet = setTags(attributes.getJSONObject("attributes"));
+                } else {
+                    tagToSet = geoTags(attributes.getJSONObject("properties"));
+                }
+
+                if (geometryType.equals("paths") || geometryType.equals("rings")) {
+                    // differentiate between MRT and The LIST
+                    if (!isGeologyRequest) {
+                        geometryArray = geometry.getJSONArray(geometryType);
+                    } else {
+                        geometryArray = geometry.getJSONArray("coordinates");
+                    }
+                    // If there are results in the features array
+                    if (geometryArray.length() > 0) {
+                        for (int counter = 0; counter < geometryArray.length(); counter++) {
+                            // make a new poly feature - can be polygon or polyline
+                            JSONPolyfeature newPolyFeature = new JSONPolyfeature();
+                            // make a List<LatLng> for the object geometry
+                            ArrayList<LatLng> newGeometryList = new ArrayList<>();
+                            JSONArray workingArray;
+                            if (!isGeologyRequest) { // The LIST
+                                workingArray = geometryArray.getJSONArray(counter);
+                            } else { // MRT request has extra level of nexting
+                                workingArray = geometryArray.getJSONArray(counter).getJSONArray(0);
+                            }
+
+                            int featureLength = workingArray.length();
+                            for (int j = 0; j < featureLength; j++) {
+                                try {
+                                    double Lon = (workingArray.getJSONArray(j).getDouble(0));
+                                    double Lat = (workingArray.getJSONArray(j).getDouble(1));
+                                    LatLng toAppend = new LatLng(Lat, Lon);
+                                    newGeometryList.add(toAppend);
+                                } catch (NullPointerException e) {
+                                    Log.i(TAG, "value was null");
+                                }
+                            }
+                            // set the geometry list to the object
+                            newPolyFeature.setGeometry(newGeometryList);
+                            if (counter == 0) {
+                                // if this is the FIRST object from the array, set the name
+                                newPolyFeature.setName(tagToSet);
+                                featureList.add(newPolyFeature);
+                            } else {
+                                JSONPolyfeature firstFeature = featureList.get(featureList.size() - 1); // get the most recent entry
+                                double firstArea = SphericalUtil.computeSignedArea(firstFeature.getGeometry());
+                                double thisArea = SphericalUtil.computeSignedArea(newPolyFeature.getGeometry());
+                                // boolean thisSmaller = Math.abs(thisArea) < Math.abs(firstArea);
+                                boolean oppositeSigns = (firstArea > 0 && thisArea < 0) || (firstArea < 0 && thisArea > 0);
+                                if (geometryType.equals("rings") && !isGeologyRequest && oppositeSigns) { // assume any further parts are holes.
+                                    // if (geometryType.equals("rings") && thisSmaller && oppositeSigns) {
+
+                                    // has holes is NOT applicable to paths/polylines
+                                    // has holes - if not not setup previously, do now:
+                                    if (!firstFeature.hasHoles()) {
+                                        firstFeature.setHoles(new ArrayList<>());
+                                        firstFeature.setHasHoles(true);
+                                    }
+                                    // this is a hole, so it doesn't get a name, and it gets added to the
+                                    // hole list, not the main list
+                                    firstFeature.addHoleToList(newGeometryList);
+                                } else {
+                                    // not a hole, but a second/third/nth part to the shape
+                                    newPolyFeature.setName(tagToSet);
+                                    featureList.add(newPolyFeature);
+                                }
+                            }
+                        }
+                    }
+                } else if (geometryType.equals("none")) { // for point features
+                    Double x;
+                    Double y;
+                    if (isGeologyRequest) {
+                        geometryArray = geometry.getJSONArray("coordinates");
+                        x = (Double) geometryArray.get(0);
+                        y = (Double) geometryArray.get(1);
+                    } else {
+                        x = geometry.getDouble("x");
+                        y = geometry.getDouble("y");
+                    }
+                    LatLng newLatLng = new LatLng(y, x);
+                    JSONPolyfeature newPointFeature = new JSONPolyfeature(tagToSet, newLatLng);
+                    featureList.add(newPointFeature);
+                }
+            }
+            return featureList;
+        } catch (JSONException e) {
+            Log.e(TAG, "Problem parsing the JSON results", e);
+        }
+        return null;
+    }
+
+    protected void processGeocodeResponse(ArrayList<JSONPolyfeature> featureList) {
+
+        if (featureList == null) {
+            Toast.makeText(this, "There was a problem with the server request",
+                    Toast.LENGTH_SHORT).show();
+            progressBar.setVisibility(View.INVISIBLE);
+            canMakeServerRequest = true;
+            return;
+        }
+        int collectionCount = featureList.size();
+        if (collectionCount == 0) {
+            Toast.makeText(this, "No results were returned", Toast.LENGTH_SHORT).show();
+        }
+
+        // markers.clear();
+        for (int i = 0; i < collectionCount; i++) {
+            final String keyValue = featureList.get(i).getName();
+            Log.i(TAG, keyValue);
+            // Instantiates a new marker
+
+                /*MarkerOptions markerOptions = new MarkerOptions()
+                        .position(featureList.get(i).getPointCoords())
+                        .title(keyValue);
+                Marker marker = mMap.addMarker(markerOptions);
+                marker.setTag(keyValue);
+                markers.add(marker);*/
+        }
+
+        // make links clickable, hopefully
+        /*callout.setAutoLinkMask(Linkify.WEB_URLS);
+        canMakeServerRequest = true;
+        progressBar.setVisibility(View.INVISIBLE);*/
     }
 
     private void doPolygonStyling(String tag, Polygon polygon) {

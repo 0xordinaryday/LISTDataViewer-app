@@ -83,10 +83,14 @@ public class AddressUtilities {
             locality = "%22LOCALITY%22+%3D+%27" + address.getLocality() + "%27";
         }
         if (!address.getStreetName().isEmpty()) {
-            streetName = "AND+%22STREET%22+%3D+%27" + address.getStreetName() + "%27";
+            if (locality.isEmpty()) {
+                streetName = "%22STREET%22+%3D+%27" + address.getStreetName() + "%27+";
+            } else {
+                streetName = "AND+%22STREET%22+%3D+%27" + address.getStreetName() + "%27+";
+            }
         }
         if (!address.getStreetType().isEmpty()) {
-            streetType = "AND+%22ST_TYPE%22+%3D+%27" + address.getStreetType() + "%27";
+            streetType = "AND+%22ST_TYPE%22+%3D+%27" + address.getStreetType() + "%27+";
         }
         if (!address.getStreetNumber().isEmpty()) {
             streetNumber = "AND+%22ST_NO_FROM%22+%3D+" + address.getStreetNumber();
@@ -96,8 +100,9 @@ public class AddressUtilities {
                 "CadastreAndAdministrative/MapServer/43/query?where=" +
                 locality + streetName + streetNumber + streetType +
                 "&text=&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&" +
-                "spatialRel=esriSpatialRelIntersects&relationParam=&outFields=&returnGeometry=" +
-                "true&returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=&" +
+                "spatialRel=esriSpatialRelIntersects&relationParam=&outFields=ST_NO_FROM%2C+" +
+                "STREET%2C+ST_TYPE%2C+LOCALITY%2C+POSTCODE&returnGeometry=" +
+                "true&returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=4326&" +
                 "returnIdsOnly=false&returnCountOnly=false&orderByFields=&" +
                 "groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&" +
                 "gdbVersion=&returnDistinctValues=false&resultOffset=&resultRecordCount=&f=json";

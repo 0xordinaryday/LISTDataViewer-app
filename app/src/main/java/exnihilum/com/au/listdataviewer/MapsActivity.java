@@ -1,6 +1,7 @@
 package exnihilum.com.au.listdataviewer;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.IntentSender;
@@ -24,7 +25,9 @@ import android.support.v4.app.FragmentActivity;
 import android.text.method.LinkMovementMethod;
 import android.text.util.Linkify;
 import android.util.Log;
+import android.view.MotionEvent;
 import android.view.View;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
@@ -193,6 +196,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
      * URL to query
      */
     // query parameters
+    @SuppressLint("ClickableViewAccessibility")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -244,6 +248,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 menuButton.setImageResource(android.R.drawable.ic_menu_add);
                 isMenuShowing = false;
             }
+        });
+
+        geocodeButton.setOnTouchListener((View view, MotionEvent ev) -> {
+            hideKeyboard(view);
+            return false;
         });
 
         geocodeButton.setOnClickListener(view -> {
@@ -1526,6 +1535,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 break;
             default:
                 polygon.setFillColor(Color.argb(alphaValue, 150, 50, 50));
+        }
+    }
+
+    protected void hideKeyboard(View view) {
+        InputMethodManager imm = (InputMethodManager) this.getSystemService(Activity.INPUT_METHOD_SERVICE);
+        //Find the currently focused view, so we can grab the correct window token from it.
+        if (imm != null) {
+            imm.hideSoftInputFromWindow(view.getWindowToken(), InputMethodManager.HIDE_NOT_ALWAYS);
         }
     }
 

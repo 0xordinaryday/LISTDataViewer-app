@@ -28,8 +28,10 @@ import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
+import android.widget.AdapterView;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.ListView;
 import android.widget.ProgressBar;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
@@ -179,6 +181,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private Polygon searchWindow;
     private AddressParser addressParser;
 
+    private ListView geocodeListView;
+    private GeocodeAdapter adapter;
+    private ArrayList<JSONPolyfeature> geocodeList;
+    private ArrayList<String> geocodeResultStrings = new ArrayList<>();
+
     // code to get bitmap from SVG file
     // http://stackoverflow.com/questions/33696488/getting-bitmap-from-vector-drawable
     private static Bitmap getBitmapFromDrawable() {
@@ -222,6 +229,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         geocodeHeading = findViewById(R.id.geocodeText);
         geocodeEntry = findViewById(R.id.geocodeEditText);
         geocodeButton = findViewById(R.id.geocodeButton);
+        geocodeListView = findViewById(R.id.geocodeList);
 
         hideAllTheThings();
 
@@ -250,6 +258,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
         });
 
+        // set up adapter for geocode results
+        adapter = new GeocodeAdapter(this, android.R.layout.simple_list_item_1, geocodeResultStrings);
+        geocodeListView.setAdapter(adapter);
+
         geocodeButton.setOnTouchListener((View view, MotionEvent ev) -> {
             hideKeyboard(view);
             return false;
@@ -264,6 +276,23 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             hideAllTheThings();
             menuButton.setImageResource(android.R.drawable.ic_menu_add);
             isMenuShowing = false;
+        });
+
+        // click listener for listview items
+        geocodeListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
+                final String item = (String) adapterView.getItemAtPosition(i);
+                for (int j = 0; j < geocodeList.size(); j++) {
+                    final String keyValue = geocodeList.get(j).getName();
+                    if (item.equals(keyValue)) {
+                        LatLng position = geocodeList.get(j).getPointCoords();
+                        mMap.moveCamera(CameraUpdateFactory.newLatLng(position));
+                        geocodeListView.setVisibility(View.INVISIBLE);
+                    }
+                }
+
+            }
         });
 
         // get initial position from shared preferences, and check if navigation allowed
@@ -395,6 +424,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         geocodeHeading.setVisibility(View.INVISIBLE);
         geocodeBackground.setVisibility(View.INVISIBLE);
         geocodeButton.setVisibility(View.INVISIBLE);
+        geocodeListView.setVisibility(View.INVISIBLE);
     }
 
     private void showAllTheThings() {
@@ -814,7 +844,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private void submitGeocodeRequest(String requestString) {
         JsonObjectRequest jsonObjectRequest = new JsonObjectRequest
                 (Request.Method.GET, requestString, null, response -> {
-                    ArrayList<JSONPolyfeature> geocodeList = extractGeocodeJson(response);
+                    geocodeList = extractGeocodeJson(response);
                     processGeocodeResponse(geocodeList);
                 }, error -> {
                     String message = "";
@@ -1472,24 +1502,17 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             Toast.makeText(this, "No results were returned", Toast.LENGTH_SHORT).show();
         }
 
+        geocodeResultStrings.clear();
+
         // markers.clear();
         for (int i = 0; i < collectionCount; i++) {
             final String keyValue = featureList.get(i).getName();
             Log.i(TAG, keyValue);
-            // Instantiates a new marker
-
-                /*MarkerOptions markerOptions = new MarkerOptions()
-                        .position(featureList.get(i).getPointCoords())
-                        .title(keyValue);
-                Marker marker = mMap.addMarker(markerOptions);
-                marker.setTag(keyValue);
-                markers.add(marker);*/
+            geocodeResultStrings.add(keyValue);
         }
 
-        // make links clickable, hopefully
-        /*callout.setAutoLinkMask(Linkify.WEB_URLS);
-        canMakeServerRequest = true;
-        progressBar.setVisibility(View.INVISIBLE);*/
+        adapter.notifyDataSetChanged();
+        geocodeListView.setVisibility(View.VISIBLE);
     }
 
     private void doPolygonStyling(String tag, Polygon polygon) {

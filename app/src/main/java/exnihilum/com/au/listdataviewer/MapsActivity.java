@@ -28,7 +28,6 @@ import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
-import android.widget.AdapterView;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.ListView;
@@ -115,7 +114,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private static String geometryType;
     private static String finalRequestString;
     private static boolean canMakeServerRequest = true;
-    private static LatLng currentPosition;
     private static String layerName;
     private static int alphaValue;
     private static Drawable drawable;
@@ -175,6 +173,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private View sliderBackground;
     private View locationBackground;
     private View spacer;
+    private View spacer2;
     private RadioGroup radioGroup;
     private boolean isMenuShowing = false;
     // search window
@@ -185,6 +184,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private GeocodeAdapter adapter;
     private ArrayList<JSONPolyfeature> geocodeList;
     private ArrayList<String> geocodeResultStrings = new ArrayList<>();
+    private Marker geocodeMarker;
+    private String geocodeResultAddress;
+    private LatLng geocodeResultPosition;
+    private Boolean movingToGeocode = false;
 
     // code to get bitmap from SVG file
     // http://stackoverflow.com/questions/33696488/getting-bitmap-from-vector-drawable
@@ -222,6 +225,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         opacitySlider = findViewById(R.id.opacitySlider);
         sliderBackground = findViewById(R.id.sliderBackground);
         spacer = findViewById(R.id.spacer);
+        spacer2 = findViewById(R.id.spacer2);
         locationBackground = findViewById(R.id.locationBackground);
         radioGroup = findViewById(R.id.radioGroup);
         coordinatesText = findViewById(R.id.coords_callout);
@@ -255,6 +259,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 hideAllTheThings();
                 menuButton.setImageResource(android.R.drawable.ic_menu_add);
                 isMenuShowing = false;
+                hideKeyboard(menuButton);
             }
         });
 
@@ -271,7 +276,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             String queryText = geocodeEntry.getText().toString();
             Address address = addressParser.parseAddress(queryText);
             String queryString = AddressUtilities.generateGeocodeQuery(address);
-            Log.i(TAG, queryString);
             submitGeocodeRequest(queryString);
             hideAllTheThings();
             menuButton.setImageResource(android.R.drawable.ic_menu_add);
@@ -279,19 +283,26 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         });
 
         // click listener for listview items
-        geocodeListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
-                final String item = (String) adapterView.getItemAtPosition(i);
-                for (int j = 0; j < geocodeList.size(); j++) {
-                    final String keyValue = geocodeList.get(j).getName();
-                    if (item.equals(keyValue)) {
-                        LatLng position = geocodeList.get(j).getPointCoords();
-                        mMap.moveCamera(CameraUpdateFactory.newLatLng(position));
-                        geocodeListView.setVisibility(View.INVISIBLE);
+        geocodeListView.setOnItemClickListener((adapterView, view, i, l) -> {
+            final String item = (String) adapterView.getItemAtPosition(i);
+            for (int j = 0; j < geocodeList.size(); j++) {
+                final String keyValue = geocodeList.get(j).getName();
+                if (item.equals(keyValue)) {
+                    if (!movingToGeocode) {
+                        movingToGeocode = true;
                     }
+                    geocodeResultAddress = keyValue;
+                    geocodeResultPosition = geocodeList.get(j).getPointCoords();
+                    mMap.moveCamera(CameraUpdateFactory.newLatLng(geocodeResultPosition));
+                    stopLocationUpdates(); // stop moving, since we're dragging
+                    Toast.makeText(this, "Stopping location services!", Toast.LENGTH_SHORT).show();
+                    geocodeListView.setVisibility(View.INVISIBLE);
+                    callout.setVisibility(View.INVISIBLE);
+                    if (geocodeMarker != null) {
+                        geocodeMarker.remove();
+                    }
+                    addGeocodeMarker();
                 }
-
             }
         });
 
@@ -411,6 +422,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         progressBar.setVisibility(View.VISIBLE);
     }
 
+    private void addGeocodeMarker() {
+        // add marker
+        MarkerOptions markerOptions = new MarkerOptions()
+                .position(geocodeResultPosition)
+                .title(geocodeResultAddress);
+        geocodeMarker = mMap.addMarker(markerOptions);
+        geocodeMarker.setTag(geocodeResultAddress);
+    }
+
     private void hideAllTheThings() {
         opacitySlider.setVisibility(View.INVISIBLE);
         opacityText.setVisibility(View.INVISIBLE);
@@ -419,6 +439,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         locationText.setVisibility(View.INVISIBLE);
         radioGroup.setVisibility(View.INVISIBLE);
         spacer.setVisibility(View.INVISIBLE);
+        spacer2.setVisibility(View.INVISIBLE);
         coordinatesText.setVisibility(View.INVISIBLE);
         geocodeEntry.setVisibility(View.INVISIBLE);
         geocodeHeading.setVisibility(View.INVISIBLE);
@@ -434,6 +455,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         locationText.setVisibility(View.VISIBLE);
         locationBackground.setVisibility(View.VISIBLE);
         radioGroup.setVisibility(View.VISIBLE);
+        spacer.setVisibility(View.VISIBLE);
         spacer.setVisibility(View.VISIBLE);
         geocodeEntry.setVisibility(View.VISIBLE);
         geocodeHeading.setVisibility(View.VISIBLE);
@@ -458,13 +480,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         // Check which radio button was clicked
         switch (view.getId()) {
             case R.id.locationOK:
-                if (checked)
+                if (checked) {
                     startLocationUpdates();
+                }
+                geocodeListView.setVisibility(View.INVISIBLE);
+                callout.setVisibility(View.INVISIBLE);
+                hideKeyboard(menuButton);
                 Toast.makeText(this, "Location services will be started", Toast.LENGTH_SHORT).show();
                 break;
             case R.id.locationNO:
-                if (checked)
+                if (checked) {
                     stopLocationUpdates();
+                }
+                hideKeyboard(menuButton);
                 Toast.makeText(this, "Location will not be used", Toast.LENGTH_SHORT).show();
                 break;
         }
@@ -628,14 +656,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         if (mCurrentLocation != null) {
             // set progress bar invisible - it will get called visible again shortly if necessary
             progressBar.setVisibility(View.INVISIBLE);
-            currentPosition = new LatLng(mCurrentLocation.getLatitude(), mCurrentLocation.getLongitude());
+            LatLng currentPosition = new LatLng(mCurrentLocation.getLatitude(), mCurrentLocation.getLongitude());
 
             // get the current zoom level, don't rezoom
             float currentZoom = mMap.getCameraPosition().zoom;
-
-            // refresh the marker
-            destroyMarker();
-            createMarker(currentPosition);
 
             float[] results = new float[3];
             Location.distanceBetween(
@@ -652,9 +676,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 } else {
                     finalRequestString = makeGeologyString(layerName, generateBoundingBox(currentPosition));
                 }
+                mMap.clear();
                 // make new server request
                 chooseTaskAndExecute();
             }
+
+            // refresh the marker
+            destroyMarker();
+            createMarker(currentPosition);
+
             initialPosition = currentPosition;
             // add search after initial position set, because it's used in the calculation
             addSearchPolygon();
@@ -986,13 +1016,17 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     initialPosition.longitude,
                     results);
             if (results[0] > 100.0 && canMakeServerRequest) {
-                if (mRequestingLocationUpdates) {
+                if (mRequestingLocationUpdates && !movingToGeocode) {
                     stopLocationUpdates(); // stop moving, since we're dragging
                     Toast.makeText(this, "Stopping location services!", Toast.LENGTH_SHORT).show();
                 }
                 progressBar.setVisibility(View.VISIBLE);
                 initialPosition = newLocation;
                 mMap.clear();
+                if (movingToGeocode) {
+                    movingToGeocode = false;
+                    addGeocodeMarker();
+                }
                 addSearchPolygon();
                 // redraw tiles after clear
                 addTiles(tileOverlay);
@@ -1232,7 +1266,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private String setGeoCodeTags(JSONObject paramAttributes) {
         try {
-            String streetNumberFrom = String.format (Locale.US, "%.0f", paramAttributes.getDouble("ST_NO_FROM"));
+            String streetNumberFrom = String.format(Locale.US, "%.0f", paramAttributes.getDouble("ST_NO_FROM"));
             String streetName = paramAttributes.getString("STREET");
             String streetType = paramAttributes.getString("ST_TYPE");
             String locality = paramAttributes.getString("LOCALITY");
@@ -1499,7 +1533,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
         int collectionCount = featureList.size();
         if (collectionCount == 0) {
-            Toast.makeText(this, "No results were returned", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "No address results could be found", Toast.LENGTH_SHORT).show();
         }
 
         geocodeResultStrings.clear();

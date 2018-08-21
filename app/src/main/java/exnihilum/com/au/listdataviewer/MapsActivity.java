@@ -189,6 +189,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private LatLng geocodeResultPosition;
     private Boolean movingToGeocode = false;
 
+    // tile overlay stuff
+
+    private TileProvider wmsTileProvider;
+    private TileOverlayOptions tileOverlay = null;
+
     // code to get bitmap from SVG file
     // http://stackoverflow.com/questions/33696488/getting-bitmap-from-vector-drawable
     private static Bitmap getBitmapFromDrawable() {
@@ -685,6 +690,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             destroyMarker();
             createMarker(currentPosition);
 
+            // refresh the tiles
+            addTiles();
+
             initialPosition = currentPosition;
             // add search after initial position set, because it's used in the calculation
             addSearchPolygon();
@@ -983,25 +991,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         // show search polygon
         addSearchPolygon();
-
-        // add tile overlay
-        TileProvider wmsTileProvider;
-        final TileOverlayOptions tileOverlay;
-
-        switch (baseMap) {
-            case "Default Google":
-                tileOverlay = null;
-                break;
-            case "":
-                tileOverlay = null;
-                break;
-            default:
-                wmsTileProvider = TileProviderFactory.getOsgeoWmsTileProvider(baseMap);
-                tileOverlay = new TileOverlayOptions().tileProvider(wmsTileProvider);
-                break;
-        }
-
-        addTiles(tileOverlay);
+        addTiles();
 
         mMap.setOnCameraMoveListener(() -> callout.setVisibility(View.INVISIBLE));
 
@@ -1029,7 +1019,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 }
                 addSearchPolygon();
                 // redraw tiles after clear
-                addTiles(tileOverlay);
+                addTiles();
                 if (!isGeologyRequest) {
                     finalRequestString = generateString(selectedType, generateBoundingBox(initialPosition));
                 } else {
@@ -1058,7 +1048,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
     }
 
-    private void addTiles(TileOverlayOptions tileOverlay) {
+    private void addTiles() {
+
+        switch (baseMap) {
+            case "Default Google":
+                tileOverlay = null;
+                break;
+            case "":
+                tileOverlay = null;
+                break;
+            default:
+                wmsTileProvider = TileProviderFactory.getOsgeoWmsTileProvider(baseMap);
+                tileOverlay = new TileOverlayOptions().tileProvider(wmsTileProvider);
+                break;
+        }
+
         if (tileOverlay != null) {
             mMap.setMapType(GoogleMap.MAP_TYPE_NONE);
             mMap.addTileOverlay(tileOverlay);

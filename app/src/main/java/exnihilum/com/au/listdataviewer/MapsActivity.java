@@ -926,7 +926,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private String makeGeologyString(String layer, String[] bbox) {
-        String MRT_WEB_SERVICES_PART1 = "http://www.mrt.tas.gov.au/web-services/ows?service=wfs&version=1.1.0&request=GetFeature&typeName=";
+        String MRT_WEB_SERVICES_PART1 = "https://www.mrt.tas.gov.au/web-services/ows?service=wfs&version=1.1.0&request=GetFeature&typeName=";
         String MRT_WEB_SERVICES_PART2 = "&styles=default&SRS=EPSG:4326&bbox=";
         String MRT_WEB_SERVICES_PART3 = "&outputFormat=JSON";
 
@@ -940,7 +940,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         String LIST_REQUEST_URL_PART5;
         String LIST_REQUEST_URL_PART2;
         if (isCOLRequest) {
-            LIST_REQUEST_URL_PART1 = "http://mapping.launceston.tas.gov.au/arcgis/rest/services/Public/";
+            LIST_REQUEST_URL_PART1 = "https://mapping.launceston.tas.gov.au/arcgis/rest/services/Public/";
             LIST_REQUEST_URL_PART5 = "&returnGeometry=true&outSR=4326&f=pjson";
             LIST_REQUEST_URL_PART2 = "/MapServer/";
         } else if (isHCCRequest) {
@@ -948,7 +948,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             LIST_REQUEST_URL_PART5 = "&returnGeometry=true&returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=4326&returnIdsOnly=false&returnCountOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&gdbVersion=&returnDistinctValues=false&resultOffset=&resultRecordCount=&f=pjson";
             LIST_REQUEST_URL_PART2 = "/arcgis/rest/services/" + mapValue + "/FeatureServer/";
         } else {
-            LIST_REQUEST_URL_PART1 = "http://services.thelist.tas.gov.au/arcgis/rest/services/Public/";
+            LIST_REQUEST_URL_PART1 = "https://services.thelist.tas.gov.au/arcgis/rest/services/Public/";
             LIST_REQUEST_URL_PART5 = "&returnGeometry=true&returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=4326&returnIdsOnly=false&returnCountOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&gdbVersion=&returnDistinctValues=false&resultOffset=&resultRecordCount=&f=pjson";
             LIST_REQUEST_URL_PART2 = "/MapServer/";
         }
@@ -1545,7 +1545,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         // markers.clear();
         for (int i = 0; i < collectionCount; i++) {
             final String keyValue = featureList.get(i).getName();
-            Log.i(TAG, keyValue);
+            // Log.i(TAG, keyValue);
             geocodeResultStrings.add(keyValue);
         }
 

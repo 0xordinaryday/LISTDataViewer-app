@@ -29,10 +29,10 @@ public class TileProviderFactory {
         layerMap.put("Geology, 250k Scale", "All_Tasmania_tas_geology250K.ecw");
         layerMap.put("MRT Landslide Susceptibility", "Geotechnical_landslide_slide.ecw");
         layerMap.put("MRT Landslide Geomorphology", "Geotechnical_landslide_geomorphology.ecw");
-        layerMap.put("State Orthophoto Composite", "Orthophoto/ImageServer");
+        layerMap.put("State Orthophoto Composite", "Orthophoto/MapServer");
         layerMap.put("Hillshade Grey", "HillshadeGrey/MapServer");
         layerMap.put("Hillshade Coloured", "Hillshade/MapServer");
-        layerMap.put("LIST Topographic", "Topographic/ImageServer");
+        layerMap.put("LIST Topographic", "Topographic/MapServer");
 
         for (String str:MRTbase) {
             if (str.equals(layerName)) {

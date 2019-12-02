@@ -371,19 +371,16 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mapValue = createIntent.getStringExtra("mapValue");
         baseMap = createIntent.getStringExtra("base");
 
-        switch (server) {
-            case "MRT":
-                String geologyString = makeGeologyString(layerName, generateBoundingBox(initialPosition));
-                isGeologyRequest = true;
-                finalRequestString = geologyString;
-                break;
-            default:
-                for (LayerType type : layers) {
-                    if (type.isNameEqualTo(layerName)) {
-                        selectedType = type;
-                    }
+        if ("MRT".equals(server)) {
+            String geologyString = makeGeologyString(layerName, generateBoundingBox(initialPosition));
+            isGeologyRequest = true;
+            finalRequestString = geologyString;
+        } else {
+            for (LayerType type : layers) {
+                if (type.isNameEqualTo(layerName)) {
+                    selectedType = type;
                 }
-                break;
+            }
         }
 
         if (server.equals("COL")) {
@@ -398,7 +395,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         if (!isGeologyRequest) {
             finalRequestString = generateString(selectedType, boundingBox);
             geometryType = selectedType.getGeometryType(); // rings, paths or none
-        } else if (isGeologyRequest && geologyPointRequests.contains(layerName)) {
+        } else if (geologyPointRequests.contains(layerName)) {
             geometryType = "none";
         } else {
             geometryType = "rings";
@@ -592,20 +589,18 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        switch (requestCode) {
-            // Check for the integer request code originally supplied to startResolutionForResult().
-            case REQUEST_CHECK_SETTINGS:
-                switch (resultCode) {
-                    case Activity.RESULT_OK:
-                        Log.i(TAG, "User agreed to make required location settings changes.");
-                        // Nothing to do. startLocationupdates() gets called in onResume again.
-                        break;
-                    case Activity.RESULT_CANCELED:
-                        Log.i(TAG, "User chose not to make required location settings changes.");
-                        mRequestingLocationUpdates = false;
-                        break;
-                }
-                break;
+        // Check for the integer request code originally supplied to startResolutionForResult().
+        if (requestCode == REQUEST_CHECK_SETTINGS) {
+            switch (resultCode) {
+                case Activity.RESULT_OK:
+                    Log.i(TAG, "User agreed to make required location settings changes.");
+                    // Nothing to do. startLocationupdates() gets called in onResume again.
+                    break;
+                case Activity.RESULT_CANCELED:
+                    Log.i(TAG, "User chose not to make required location settings changes.");
+                    mRequestingLocationUpdates = false;
+                    break;
+            }
         }
     }
 

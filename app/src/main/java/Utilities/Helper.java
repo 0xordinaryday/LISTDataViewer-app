@@ -67,9 +67,8 @@ public class Helper {
     // usage unzip(new File("/sdcard/pictures.zip"), new File("/sdcard"));
     // https://stackoverflow.com/questions/3382996/how-to-unzip-files-programmatically-in-android
     public static void unzip(File zipFile, File targetDirectory) throws IOException {
-        ZipInputStream zis = new ZipInputStream(
-                new BufferedInputStream(new FileInputStream(zipFile)));
-        try {
+        try (ZipInputStream zis = new ZipInputStream(
+                new BufferedInputStream(new FileInputStream(zipFile)))) {
             ZipEntry ze;
             int count;
             byte[] buffer = new byte[8192];
@@ -94,8 +93,6 @@ public class Helper {
                 file.setLastModified(time);
             */
             }
-        } finally {
-            zis.close();
         }
     }
 
